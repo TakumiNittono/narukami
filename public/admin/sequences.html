@@ -28,23 +28,20 @@
         </header>
 
         <div class="container">
-            <!-- 進捗状況と手動実行 -->
-            <div class="stats" style="margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                    <div>
-                        <h3 style="margin-bottom: 10px;">ステップ配信の進捗状況</h3>
-                        <div id="stepStatus" style="display: flex; gap: 20px; flex-wrap: wrap;">
-                            <p>読み込み中...</p>
-                        </div>
-                    </div>
-                    <button id="executeNowBtn" class="btn-primary" style="background: #4CAF50;">
-                        ⚡ 今すぐ実行
-                    </button>
-                </div>
+            <!-- 手動実行ボタン（目立つ位置に配置） -->
+            <div class="actions" style="margin-bottom: 20px;">
+                <button id="executeNowBtn" class="btn-primary" style="background: #4CAF50; font-size: 1.1em; padding: 15px 30px;">
+                    ⚡ 今すぐ実行（配信待ちの通知を送信）
+                </button>
+                <a href="/admin/sequences/create" class="btn-primary">+ 新規ステップ配信作成</a>
             </div>
 
-            <div class="actions">
-                <a href="/admin/sequences/create" class="btn-primary">+ 新規ステップ配信作成</a>
+            <!-- 進捗状況 -->
+            <div class="stats" style="margin-bottom: 20px;">
+                <h3 style="margin-bottom: 10px;">ステップ配信の進捗状況</h3>
+                <div id="stepStatus" style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <p>読み込み中...</p>
+                </div>
             </div>
 
             <div class="notifications-section">
@@ -61,10 +58,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             checkAuth().then(async () => {
                 document.getElementById('mainScreen').style.display = 'block';
-                await Promise.all([loadSequences(), loadStepStatus()]);
                 
-                // 手動実行ボタン
-                document.getElementById('executeNowBtn').addEventListener('click', executeStepNotifications);
+                // 手動実行ボタンのイベントリスナーを設定
+                const executeBtn = document.getElementById('executeNowBtn');
+                if (executeBtn) {
+                    executeBtn.addEventListener('click', executeStepNotifications);
+                } else {
+                    console.error('Execute button not found!');
+                }
+                
+                await Promise.all([loadSequences(), loadStepStatus()]);
             });
         });
 
