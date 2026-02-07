@@ -259,7 +259,7 @@
             btn.textContent = '実行中...';
             
             try {
-                const response = await fetch('/api/step-sequences/execute', {
+                const response = await fetch('/api/cron/send-step-notifications', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

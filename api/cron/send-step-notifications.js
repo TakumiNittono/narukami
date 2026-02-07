@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../lib/supabase.js';
+import { verifyAdmin } from '../../lib/auth.js';
 import webpush from 'web-push';
 
 // Web Push の VAPID キーを設定
@@ -9,8 +10,11 @@ webpush.setVapidDetails(
 );
 
 export default async function handler(req, res) {
-    // Vercel Cron からのリクエストのみ受け付ける
-    if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    // Vercel Cron または管理画面からのリクエストを受け付ける
+    const isCronRequest = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+    const isAdminRequest = verifyAdmin(req);
+    
+    if (!isCronRequest && !isAdminRequest) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 
