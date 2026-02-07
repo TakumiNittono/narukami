@@ -5,107 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ステップ配信管理 - Narukami 管理画面</title>
     <link rel="stylesheet" href="/admin/admin.css">
-    <style>
-        .sequence-card {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .sequence-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .sequence-title {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #333;
-        }
-        .sequence-status {
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-        }
-        .status-active {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-        .status-inactive {
-            background: #ffebee;
-            color: #c62828;
-        }
-        .sequence-description {
-            color: #666;
-            margin-bottom: 15px;
-        }
-        .steps-list {
-            margin-top: 15px;
-            padding-left: 20px;
-        }
-        .step-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            margin-bottom: 8px;
-            background: #f9f9f9;
-            border-radius: 6px;
-            border-left: 3px solid #4A90D9;
-        }
-        .step-number {
-            background: #4A90D9;
-            color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
-        .step-content {
-            flex: 1;
-        }
-        .step-title {
-            font-weight: bold;
-            color: #333;
-        }
-        .step-body {
-            font-size: 0.9em;
-            color: #666;
-            margin: 5px 0;
-        }
-        .step-timing {
-            font-size: 0.85em;
-            color: #4A90D9;
-            font-weight: 500;
-        }
-        .sequence-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .btn-small {
-            padding: 8px 16px;
-            font-size: 0.9em;
-        }
-        .btn-edit {
-            background: #4A90D9;
-            color: white;
-        }
-        .btn-toggle {
-            background: #ff9800;
-            color: white;
-        }
-        .btn-delete {
-            background: #f44336;
-            color: white;
-        }
-    </style>
 </head>
 <body>
     <!-- ログイン画面 -->
@@ -202,7 +101,6 @@
                         ${stepsHtml}
                     </div>
                     <div class="sequence-actions">
-                        <a href="/admin/sequences/edit?id=${sequence.id}" class="btn-small btn-edit">編集</a>
                         <button class="btn-small btn-toggle" data-id="${sequence.id}" data-active="${sequence.is_active}">
                             ${sequence.is_active ? '無効化' : '有効化'}
                         </button>
@@ -215,17 +113,17 @@
         function getTimingText(step) {
             switch (step.delay_type) {
                 case 'immediate':
-                    return '即時配信';
+                    return '⚡ 即時配信';
                 case 'minutes':
-                    return `${step.delay_value}分後`;
+                    return `⏰ ${step.delay_value}分後`;
                 case 'hours':
-                    return `${step.delay_value}時間後`;
+                    return `⏰ ${step.delay_value}時間後`;
                 case 'days':
-                    return `${step.delay_value}日後`;
+                    return `📅 ${step.delay_value}日後`;
                 case 'scheduled':
-                    return `毎日 ${step.scheduled_time} に配信`;
+                    return `🕐 毎日 ${step.scheduled_time} に配信`;
                 default:
-                    return '配信タイミング未設定';
+                    return '⚠️ 配信タイミング未設定';
             }
         }
 
