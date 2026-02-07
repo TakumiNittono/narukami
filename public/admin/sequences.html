@@ -28,6 +28,21 @@
         </header>
 
         <div class="container">
+            <!-- 進捗状況と手動実行 -->
+            <div class="stats" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <h3 style="margin-bottom: 10px;">ステップ配信の進捗状況</h3>
+                        <div id="stepStatus" style="display: flex; gap: 20px; flex-wrap: wrap;">
+                            <p>読み込み中...</p>
+                        </div>
+                    </div>
+                    <button id="executeNowBtn" class="btn-primary" style="background: #4CAF50;">
+                        ⚡ 今すぐ実行
+                    </button>
+                </div>
+            </div>
+
             <div class="actions">
                 <a href="/admin/sequences/create" class="btn-primary">+ 新規ステップ配信作成</a>
             </div>
@@ -46,7 +61,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             checkAuth().then(async () => {
                 document.getElementById('mainScreen').style.display = 'block';
-                await loadSequences();
+                await Promise.all([loadSequences(), loadStepStatus()]);
+                
+                // 手動実行ボタン
+                document.getElementById('executeNowBtn').addEventListener('click', executeStepNotifications);
             });
         });
 
@@ -189,6 +207,77 @@
                 }
             } catch (error) {
                 alert('エラーが発生しました: ' + error.message);
+            }
+        }
+
+        async function loadStepStatus() {
+            const statusDiv = document.getElementById('stepStatus');
+            
+            try {
+                const response = await fetch('/api/step-sequences/status', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'ok' && result.data) {
+                    const { stats, overdue } = result.data;
+                    
+                    statusDiv.innerHTML = `
+                        <div>
+                            <strong>総進捗数:</strong> ${stats.total}件
+                        </div>
+                        <div style="color: ${overdue.length > 0 ? '#f44336' : '#4CAF50'};">
+                            <strong>配信待ち:</strong> ${overdue.length}件
+                        </div>
+                        <div>
+                            <strong>今後の予定:</strong> ${stats.upcoming}件
+                        </div>
+                        <div>
+                            <strong>完了:</strong> ${stats.completed}件
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = '<p>進捗情報の取得に失敗しました</p>';
+                }
+            } catch (error) {
+                console.error('Status load error:', error);
+                statusDiv.innerHTML = '<p>進捗情報の取得に失敗しました</p>';
+            }
+        }
+
+        async function executeStepNotifications() {
+            const btn = document.getElementById('executeNowBtn');
+            const originalText = btn.textContent;
+            
+            btn.disabled = true;
+            btn.textContent = '実行中...';
+            
+            try {
+                const response = await fetch('/api/step-sequences/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'ok') {
+                    alert(`実行完了！\n成功: ${result.sent}件\n失敗: ${result.failed}件\n合計: ${result.total}件`);
+                    await loadStepStatus();
+                    await loadSequences();
+                } else {
+                    alert('実行に失敗しました: ' + result.message);
+                }
+            } catch (error) {
+                alert('エラーが発生しました: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
             }
         }
 
