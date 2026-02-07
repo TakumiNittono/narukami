@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ステップ配信管理 - Narukami 管理画面</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+    <style>
+        .sequence-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .sequence-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .sequence-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        .sequence-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        .status-active {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status-inactive {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .sequence-description {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .steps-list {
+            margin-top: 15px;
+            padding-left: 20px;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border-left: 3px solid #4A90D9;
+        }
+        .step-number {
+            background: #4A90D9;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-title {
+            font-weight: bold;
+            color: #333;
+        }
+        .step-body {
+            font-size: 0.9em;
+            color: #666;
+            margin: 5px 0;
+        }
+        .step-timing {
+            font-size: 0.85em;
+            color: #4A90D9;
+            font-weight: 500;
+        }
+        .sequence-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+        .btn-edit {
+            background: #4A90D9;
+            color: white;
+        }
+        .btn-toggle {
+            background: #ff9800;
+            color: white;
+        }
+        .btn-delete {
+            background: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <h1>Narukami 管理画面</h1>
+            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
+            <button id="loginButton" class="btn-primary">ログイン</button>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- メイン画面 -->
+    <div id="mainScreen" class="main-screen" style="display: none;">
+        <header class="header">
+            <h1>ステップ配信管理</h1>
+            <div style="display: flex; gap: 10px;">
+                <a href="/admin" class="btn-secondary">ダッシュボード</a>
+                <button id="logoutButton" class="btn-secondary">ログアウト</button>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="actions">
+                <a href="/admin/sequences/create" class="btn-primary">+ 新規ステップ配信作成</a>
+            </div>
+
+            <div class="notifications-section">
+                <h2>ステップ配信シーケンス一覧</h2>
+                <div id="sequencesList" class="sequences-list">
+                    <p class="loading">読み込み中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/admin.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth().then(async () => {
+                document.getElementById('mainScreen').style.display = 'block';
+                await loadSequences();
+            });
+        });
+
+        async function loadSequences() {
+            const listDiv = document.getElementById('sequencesList');
+            
+            try {
+                const response = await fetch('/api/step-sequences/list', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'ok' && result.data && result.data.length > 0) {
+                    listDiv.innerHTML = result.data.map(seq => renderSequenceCard(seq)).join('');
+                    attachEventListeners();
+                } else {
+                    listDiv.innerHTML = '<p class="no-data">ステップ配信シーケンスがまだありません</p>';
+                }
+            } catch (error) {
+                listDiv.innerHTML = `<p class="error">読み込みエラー: ${error.message}</p>`;
+            }
+        }
+
+        function renderSequenceCard(sequence) {
+            const statusClass = sequence.is_active ? 'status-active' : 'status-inactive';
+            const statusText = sequence.is_active ? '有効' : '無効';
+            
+            const stepsHtml = sequence.steps && sequence.steps.length > 0
+                ? sequence.steps.map(step => `
+                    <div class="step-item">
+                        <div class="step-number">${step.step_order}</div>
+                        <div class="step-content">
+                            <div class="step-title">${escapeHtml(step.title)}</div>
+                            <div class="step-body">${escapeHtml(step.body)}</div>
+                            <div class="step-timing">${getTimingText(step)}</div>
+                        </div>
+                    </div>
+                `).join('')
+                : '<p class="no-data">ステップが設定されていません</p>';
+
+            return `
+                <div class="sequence-card" data-id="${sequence.id}">
+                    <div class="sequence-header">
+                        <div class="sequence-title">${escapeHtml(sequence.name)}</div>
+                        <span class="sequence-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="sequence-description">${escapeHtml(sequence.description || '')}</div>
+                    <div class="steps-list">
+                        ${stepsHtml}
+                    </div>
+                    <div class="sequence-actions">
+                        <a href="/admin/sequences/edit?id=${sequence.id}" class="btn-small btn-edit">編集</a>
+                        <button class="btn-small btn-toggle" data-id="${sequence.id}" data-active="${sequence.is_active}">
+                            ${sequence.is_active ? '無効化' : '有効化'}
+                        </button>
+                        <button class="btn-small btn-delete" data-id="${sequence.id}">削除</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getTimingText(step) {
+            switch (step.delay_type) {
+                case 'immediate':
+                    return '即時配信';
+                case 'minutes':
+                    return `${step.delay_value}分後`;
+                case 'hours':
+                    return `${step.delay_value}時間後`;
+                case 'days':
+                    return `${step.delay_value}日後`;
+                case 'scheduled':
+                    return `毎日 ${step.scheduled_time} に配信`;
+                default:
+                    return '配信タイミング未設定';
+            }
+        }
+
+        function attachEventListeners() {
+            // トグルボタン
+            document.querySelectorAll('.btn-toggle').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.dataset.id;
+                    const isActive = e.target.dataset.active === 'true';
+                    await toggleSequence(id, !isActive);
+                });
+            });
+
+            // 削除ボタン
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.dataset.id;
+                    if (confirm('このステップ配信シーケンスを削除してもよろしいですか？')) {
+                        await deleteSequence(id);
+                    }
+                });
+            });
+        }
+
+        async function toggleSequence(id, isActive) {
+            try {
+                const response = await fetch(`/api/step-sequences/toggle`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                    },
+                    body: JSON.stringify({ id, is_active: isActive })
+                });
+
+                const result = await response.json();
+                if (result.status === 'ok') {
+                    await loadSequences();
+                } else {
+                    alert('更新に失敗しました: ' + result.message);
+                }
+            } catch (error) {
+                alert('エラーが発生しました: ' + error.message);
+            }
+        }
+
+        async function deleteSequence(id) {
+            try {
+                const response = await fetch(`/api/step-sequences/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                    },
+                    body: JSON.stringify({ id })
+                });
+
+                const result = await response.json();
+                if (result.status === 'ok') {
+                    await loadSequences();
+                } else {
+                    alert('削除に失敗しました: ' + result.message);
+                }
+            } catch (error) {
+                alert('エラーが発生しました: ' + error.message);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

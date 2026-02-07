@@ -29,10 +29,13 @@ export default async function handler(req, res) {
         // 既存のendpointをチェックして、存在する場合は更新、存在しない場合は挿入
         const { data: existing } = await supabaseAdmin
             .from('users')
-            .select('fcm_token')
+            .select('id, fcm_token')
             .like('fcm_token', `%"endpoint":"${subscription.endpoint}"%`)
             .limit(1);
         
+        let userId;
+        let isNewUser = false;
+
         if (existing && existing.length > 0) {
             // 既存のレコードを更新
             const { error } = await supabaseAdmin
@@ -41,25 +44,39 @@ export default async function handler(req, res) {
                 .eq('fcm_token', existing[0].fcm_token);
             
             if (error) throw error;
+            userId = existing[0].id;
         } else {
             // 新規レコードを挿入
-            const { error } = await supabaseAdmin
+            const { data: newUser, error } = await supabaseAdmin
                 .from('users')
-                .insert({ fcm_token: subscriptionJson });
+                .insert({ fcm_token: subscriptionJson })
+                .select()
+                .single();
             
             if (error) {
                 // UNIQUE制約違反の場合は更新を試みる
                 if (error.code === '23505') {
-                    const { error: updateError } = await supabaseAdmin
+                    const { data: updatedUser, error: updateError } = await supabaseAdmin
                         .from('users')
                         .update({ fcm_token: subscriptionJson })
-                        .eq('fcm_token', subscriptionJson);
+                        .eq('fcm_token', subscriptionJson)
+                        .select()
+                        .single();
                     
                     if (updateError) throw updateError;
+                    userId = updatedUser.id;
                 } else {
                     throw error;
                 }
+            } else {
+                userId = newUser.id;
+                isNewUser = true;
             }
+        }
+
+        // 新規ユーザーの場合、有効なステップ配信シーケンスに登録
+        if (isNewUser && userId) {
+            await enrollUserInStepSequences(userId);
         }
 
         return res.status(200).json({ status: 'ok', message: 'Subscription registered' });
@@ -67,4 +84,104 @@ export default async function handler(req, res) {
         console.error('Subscription registration error:', err);
         return res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
+}
+
+/**
+ * 新規ユーザーを有効なステップ配信シーケンスに登録する
+ */
+async function enrollUserInStepSequences(userId) {
+    try {
+        // 有効なシーケンスを取得
+        const { data: activeSequences, error: seqError } = await supabaseAdmin
+            .from('step_sequences')
+            .select('id')
+            .eq('is_active', true);
+
+        if (seqError) {
+            console.error('Failed to fetch active sequences:', seqError);
+            return;
+        }
+
+        if (!activeSequences || activeSequences.length === 0) {
+            console.log('No active sequences found');
+            return;
+        }
+
+        // 各シーケンスのステップ1を取得して進捗を作成
+        for (const sequence of activeSequences) {
+            const { data: firstStep, error: stepError } = await supabaseAdmin
+                .from('step_notifications')
+                .select('*')
+                .eq('sequence_id', sequence.id)
+                .eq('step_order', 1)
+                .single();
+
+            if (stepError || !firstStep) {
+                console.error(`No first step found for sequence ${sequence.id}`);
+                continue;
+            }
+
+            // 次の配信時刻を計算
+            const nextNotificationAt = calculateNextNotificationTime(firstStep);
+
+            // 進捗レコードを作成
+            const { error: progressError } = await supabaseAdmin
+                .from('user_step_progress')
+                .insert({
+                    user_id: userId,
+                    sequence_id: sequence.id,
+                    current_step: 0, // 0 = 未開始
+                    next_notification_at: nextNotificationAt
+                });
+
+            if (progressError) {
+                console.error(`Failed to create progress for sequence ${sequence.id}:`, progressError);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to enroll user in step sequences:', err);
+    }
+}
+
+/**
+ * ステップの配信タイミング設定から次の配信時刻を計算
+ */
+function calculateNextNotificationTime(step) {
+    const now = new Date();
+
+    switch (step.delay_type) {
+        case 'immediate':
+            return now.toISOString();
+        
+        case 'minutes':
+            now.setMinutes(now.getMinutes() + step.delay_value);
+            return now.toISOString();
+        
+        case 'hours':
+            now.setHours(now.getHours() + step.delay_value);
+            return now.toISOString();
+        
+        case 'days':
+            now.setDate(now.getDate() + step.delay_value);
+            return now.toISOString();
+        
+        case 'scheduled':
+            if (!step.scheduled_time) return now.toISOString();
+            
+            // scheduled_time は "HH:MM:SS" 形式
+            const [hours, minutes, seconds] = step.scheduled_time.split(':').map(Number);
+            const scheduled = new Date();
+            scheduled.setHours(hours, minutes, seconds || 0, 0);
+            
+            // もし今日の指定時刻が既に過ぎていたら翌日に設定
+            if (scheduled <= now) {
+                scheduled.setDate(scheduled.getDate() + 1);
+            }
+            
+            return scheduled.toISOString();
+        
+        default:
+            return now.toISOString();
+    }
+}
 }

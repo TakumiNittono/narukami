@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ステップ配信作成 - Narukami 管理画面</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+    <style>
+        .step-builder {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .step-item-form {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .step-number-badge {
+            background: #4A90D9;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .step-remove {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .timing-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .timing-option {
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .timing-option:hover {
+            border-color: #4A90D9;
+            background: #f0f7ff;
+        }
+        .timing-option.selected {
+            border-color: #4A90D9;
+            background: #e3f2fd;
+        }
+        .timing-option input[type="radio"] {
+            margin-right: 8px;
+        }
+        .timing-value-input {
+            display: none;
+            margin-top: 10px;
+        }
+        .timing-value-input.visible {
+            display: block;
+        }
+        .btn-add-step {
+            width: 100%;
+            padding: 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        .btn-add-step:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <h1>Narukami 管理画面</h1>
+            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
+            <button id="loginButton" class="btn-primary">ログイン</button>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- 作成画面 -->
+    <div id="createScreen" class="create-screen" style="display: none;">
+        <header class="header">
+            <h1>ステップ配信作成</h1>
+            <div style="display: flex; gap: 10px;">
+                <a href="/admin/sequences" class="btn-secondary">戻る</a>
+            </div>
+        </header>
+
+        <div class="container">
+            <form id="createForm" class="create-form">
+                <!-- 基本情報 -->
+                <div class="form-group">
+                    <label for="name">シーケンス名 <span class="required">*</span></label>
+                    <input type="text" id="name" name="name" required maxlength="200" class="form-input" placeholder="例: 新規登録ウェルカムシリーズ">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">説明</label>
+                    <textarea id="description" name="description" rows="3" class="form-textarea" placeholder="このステップ配信の目的や概要を入力してください"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="is_active" name="is_active" checked>
+                        作成後すぐに有効化する
+                    </label>
+                </div>
+
+                <!-- ステップビルダー -->
+                <div class="step-builder">
+                    <h3>ステップ設定</h3>
+                    <div id="stepsContainer"></div>
+                    <button type="button" id="addStepBtn" class="btn-add-step">+ ステップを追加</button>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">作成する</button>
+                    <a href="/admin/sequences" class="btn-secondary">キャンセル</a>
+                </div>
+
+                <div id="formError" class="error-message" style="display: none;"></div>
+                <div id="formSuccess" class="success-message" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/admin/admin.js"></script>
+    <script>
+        let stepCounter = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth().then(() => {
+                document.getElementById('createScreen').style.display = 'block';
+                initForm();
+            });
+        });
+
+        function initForm() {
+            // 初期ステップを1つ追加
+            addStep();
+
+            // ステップ追加ボタン
+            document.getElementById('addStepBtn').addEventListener('click', addStep);
+
+            // フォーム送信
+            document.getElementById('createForm').addEventListener('submit', handleSubmit);
+        }
+
+        function addStep() {
+            stepCounter++;
+            const container = document.getElementById('stepsContainer');
+            
+            const stepHtml = `
+                <div class="step-item-form" data-step="${stepCounter}">
+                    <div class="step-header">
+                        <div class="step-number-badge">${stepCounter}</div>
+                        ${stepCounter > 1 ? '<button type="button" class="step-remove" onclick="removeStep(this)">削除</button>' : ''}
+                    </div>
+
+                    <div class="form-group">
+                        <label>タイトル <span class="required">*</span></label>
+                        <input type="text" name="step_title_${stepCounter}" required maxlength="100" class="form-input" placeholder="通知のタイトル">
+                    </div>
+
+                    <div class="form-group">
+                        <label>本文 <span class="required">*</span></label>
+                        <textarea name="step_body_${stepCounter}" required maxlength="500" rows="3" class="form-textarea" placeholder="通知の本文"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>タップ時のURL（省略可）</label>
+                        <input type="url" name="step_url_${stepCounter}" class="form-input" placeholder="https://example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label>配信タイミング <span class="required">*</span></label>
+                        <div class="timing-selector">
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'immediate')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="immediate" ${stepCounter === 1 ? 'checked' : ''}>
+                                <strong>即時配信</strong><br>
+                                <small>登録直後に配信</small>
+                            </label>
+
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'minutes')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="minutes">
+                                <strong>n分後</strong><br>
+                                <small>指定時間後に配信</small>
+                            </label>
+
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'hours')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="hours">
+                                <strong>n時間後</strong><br>
+                                <small>指定時間後に配信</small>
+                            </label>
+
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'days')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="days">
+                                <strong>n日後</strong><br>
+                                <small>指定日数後に配信</small>
+                            </label>
+
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'scheduled')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="scheduled">
+                                <strong>時刻指定</strong><br>
+                                <small>毎日指定時刻に配信</small>
+                            </label>
+                        </div>
+
+                        <div id="timing_value_${stepCounter}" class="timing-value-input">
+                            <label>待機時間</label>
+                            <input type="number" name="delay_value_${stepCounter}" min="1" class="form-input" placeholder="数値を入力">
+                        </div>
+
+                        <div id="timing_scheduled_${stepCounter}" class="timing-value-input">
+                            <label>配信時刻</label>
+                            <input type="time" name="scheduled_time_${stepCounter}" class="form-input">
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', stepHtml);
+            
+            // 初期選択状態を反映
+            if (stepCounter === 1) {
+                selectTiming(stepCounter, 'immediate');
+            }
+        }
+
+        function removeStep(btn) {
+            btn.closest('.step-item-form').remove();
+            renumberSteps();
+        }
+
+        function renumberSteps() {
+            const steps = document.querySelectorAll('.step-item-form');
+            steps.forEach((step, index) => {
+                const badge = step.querySelector('.step-number-badge');
+                if (badge) {
+                    badge.textContent = index + 1;
+                }
+            });
+        }
+
+        function selectTiming(stepNum, type) {
+            // ラジオボタンを選択
+            const radio = document.querySelector(`input[name="delay_type_${stepNum}"][value="${type}"]`);
+            if (radio) radio.checked = true;
+
+            // 全ての timing-option から selected クラスを削除
+            const container = document.querySelector(`[data-step="${stepNum}"]`);
+            container.querySelectorAll('.timing-option').forEach(opt => opt.classList.remove('selected'));
+            
+            // 選択された timing-option に selected クラスを追加
+            radio.closest('.timing-option').classList.add('selected');
+
+            // 入力フィールドの表示/非表示
+            const valueInput = document.getElementById(`timing_value_${stepNum}`);
+            const scheduledInput = document.getElementById(`timing_scheduled_${stepNum}`);
+
+            valueInput.classList.remove('visible');
+            scheduledInput.classList.remove('visible');
+
+            if (type === 'minutes' || type === 'hours' || type === 'days') {
+                valueInput.classList.add('visible');
+            } else if (type === 'scheduled') {
+                scheduledInput.classList.add('visible');
+            }
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const name = formData.get('name');
+            const description = formData.get('description');
+            const is_active = document.getElementById('is_active').checked;
+
+            // ステップデータを収集
+            const steps = [];
+            const stepElements = document.querySelectorAll('.step-item-form');
+
+            for (let i = 0; i < stepElements.length; i++) {
+                const stepNum = stepElements[i].dataset.step;
+                const title = formData.get(`step_title_${stepNum}`);
+                const body = formData.get(`step_body_${stepNum}`);
+                const url = formData.get(`step_url_${stepNum}`) || '';
+                const delay_type = formData.get(`delay_type_${stepNum}`);
+                const delay_value = parseInt(formData.get(`delay_value_${stepNum}`)) || 0;
+                const scheduled_time = formData.get(`scheduled_time_${stepNum}`) || null;
+
+                if (!title || !body || !delay_type) {
+                    showError(`ステップ${i + 1}の必須項目が入力されていません`);
+                    return;
+                }
+
+                steps.push({
+                    step_order: i + 1,
+                    title,
+                    body,
+                    url,
+                    delay_type,
+                    delay_value,
+                    scheduled_time
+                });
+            }
+
+            if (steps.length === 0) {
+                showError('少なくとも1つのステップを追加してください');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/step-sequences/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                    },
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        is_active,
+                        steps
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'ok') {
+                    showSuccess('ステップ配信を作成しました');
+                    setTimeout(() => {
+                        window.location.href = '/admin/sequences';
+                    }, 1000);
+                } else {
+                    showError(result.message || '作成に失敗しました');
+                }
+            } catch (error) {
+                showError('エラーが発生しました: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('formError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('formSuccess').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('formSuccess');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            document.getElementById('formError').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

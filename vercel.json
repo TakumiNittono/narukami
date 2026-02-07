@@ -3,11 +3,17 @@
     {
       "path": "/api/cron/send-scheduled",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/send-step-notifications",
+      "schedule": "*/5 * * * *"
     }
   ],
   "rewrites": [
     { "source": "/admin", "destination": "/admin/index.html" },
     { "source": "/admin/create", "destination": "/admin/create.html" },
+    { "source": "/admin/sequences", "destination": "/admin/sequences.html" },
+    { "source": "/admin/sequences/create", "destination": "/admin/sequences-create.html" },
     { "source": "/thanks", "destination": "/thanks.html" }
   ],
   "headers": [
