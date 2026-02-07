@@ -16,8 +16,25 @@ export default async function handler(req, res) {
 
     const { subscription } = req.body;
 
-    if (!subscription || !subscription.endpoint) {
+    if (!subscription) {
         return res.status(400).json({ status: 'error', message: 'Subscription is required' });
+    }
+
+    if (!subscription.endpoint || typeof subscription.endpoint !== 'string') {
+        return res.status(400).json({ 
+            status: 'error', 
+            message: 'Invalid subscription: endpoint is required and must be a string' 
+        });
+    }
+
+    // endpointの形式チェック（URL形式であることを確認）
+    try {
+        new URL(subscription.endpoint);
+    } catch (e) {
+        return res.status(400).json({ 
+            status: 'error', 
+            message: 'Invalid subscription: endpoint must be a valid URL' 
+        });
     }
 
     try {
@@ -27,24 +44,35 @@ export default async function handler(req, res) {
         const subscriptionJson = JSON.stringify(subscription);
         
         // 既存のendpointをチェックして、存在する場合は更新、存在しない場合は挿入
-        const { data: existing } = await supabaseAdmin
+        // 全ユーザーを取得してJavaScriptでフィルタリング（LIKEクエリのエスケープ問題を回避）
+        const { data: allUsers, error: fetchError } = await supabaseAdmin
             .from('users')
-            .select('id, fcm_token')
-            .like('fcm_token', `%"endpoint":"${subscription.endpoint}"%`)
-            .limit(1);
+            .select('id, fcm_token');
+        
+        if (fetchError) throw fetchError;
+        
+        // endpointで既存ユーザーを検索
+        const existing = allUsers?.find(user => {
+            try {
+                const userSub = JSON.parse(user.fcm_token);
+                return userSub.endpoint === subscription.endpoint;
+            } catch (e) {
+                return false;
+            }
+        });
         
         let userId;
         let isNewUser = false;
 
-        if (existing && existing.length > 0) {
+        if (existing) {
             // 既存のレコードを更新
             const { error } = await supabaseAdmin
                 .from('users')
                 .update({ fcm_token: subscriptionJson })
-                .eq('fcm_token', existing[0].fcm_token);
+                .eq('id', existing.id);
             
             if (error) throw error;
-            userId = existing[0].id;
+            userId = existing.id;
         } else {
             // 新規レコードを挿入
             const { data: newUser, error } = await supabaseAdmin
@@ -82,7 +110,12 @@ export default async function handler(req, res) {
         return res.status(200).json({ status: 'ok', message: 'Subscription registered' });
     } catch (err) {
         console.error('Subscription registration error:', err);
-        return res.status(500).json({ status: 'error', message: 'Internal server error' });
+        const errorMessage = err.message || 'Internal server error';
+        return res.status(500).json({ 
+            status: 'error', 
+            message: errorMessage,
+            details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 }
 
@@ -183,5 +216,4 @@ function calculateNextNotificationTime(step) {
         default:
             return now.toISOString();
     }
-}
 }

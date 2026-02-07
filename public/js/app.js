@@ -135,6 +135,11 @@ async function requestNotificationPermission() {
                 body: JSON.stringify({ subscription: subscriptionData }),
             });
 
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'サーバーエラーが発生しました' }));
+                throw new Error(errorData.message || `サーバーエラー: ${response.status}`);
+            }
+
             const result = await response.json();
 
             if (result.status === 'ok') {
@@ -150,7 +155,20 @@ async function requestNotificationPermission() {
         console.error('通知設定エラー:', error);
         button.disabled = false;
         button.textContent = '通知を受け取る 🔔';
-        statusMessage.textContent = error.message || '通知の設定に失敗しました。もう一度お試しください。';
+        
+        // エラーメッセージをユーザーフレンドリーに表示
+        let errorMsg = error.message || '通知の設定に失敗しました。もう一度お試しください。';
+        
+        // 特定のエラーメッセージを日本語に翻訳
+        if (errorMsg.includes('Invalid subscription')) {
+            errorMsg = 'サブスクリプション情報が無効です。ページを再読み込みして再度お試しください。';
+        } else if (errorMsg.includes('endpoint')) {
+            errorMsg = '通知の設定に問題が発生しました。ブラウザを最新版に更新してください。';
+        } else if (errorMsg.includes('サーバーエラー')) {
+            errorMsg = 'サーバーに接続できませんでした。しばらくしてから再度お試しください。';
+        }
+        
+        statusMessage.textContent = errorMsg;
         statusMessage.className = 'status-message error';
         statusMessage.style.display = 'block';
     }
