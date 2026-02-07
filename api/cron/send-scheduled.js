@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../../lib/supabase.js';
-import { getFirebaseAdmin } from '../../lib/firebase-admin.js';
+import { initWebPush } from '../../lib/webpush.js';
 
 export default async function handler(req, res) {
     // Vercel Cron認証
@@ -8,6 +8,9 @@ export default async function handler(req, res) {
     }
 
     try {
+        // Web Push初期化
+        const webpush = initWebPush();
+
         // ===== STEP 1: 未送信通知を取得 =====
         const { data: notifications, error: notifError } = await supabaseAdmin
             .from('notifications')
@@ -25,7 +28,7 @@ export default async function handler(req, res) {
         // ===== STEP 2: 全ユーザートークン取得 =====
         const { data: users, error: userError } = await supabaseAdmin
             .from('users')
-            .select('fcm_token');
+            .select('fcm_token'); // 実際はsubscription JSON
 
         if (userError) throw userError;
 
@@ -33,31 +36,44 @@ export default async function handler(req, res) {
             return res.status(200).json({ status: 'ok', message: 'No users to send' });
         }
 
-        const tokens = users.map(u => u.fcm_token);
-        const admin = getFirebaseAdmin();
         const results = [];
 
         // ===== STEP 3: 通知ごとに送信 =====
         for (const notification of notifications) {
-            const message = {
-                notification: {
-                    title: notification.title,
-                    body: notification.body,
-                },
-                webpush: {
-                    notification: {
+            let successCount = 0;
+            let failureCount = 0;
+
+            // 各ユーザーに通知送信
+            const sendPromises = users.map(async (user) => {
+                try {
+                    // fcm_tokenカラムに保存されたサブスクリプションJSONをパース
+                    const subscription = JSON.parse(user.fcm_token);
+                    
+                    const payload = JSON.stringify({
+                        title: notification.title,
+                        body: notification.body,
                         icon: '/icons/icon-192.png',
                         badge: '/icons/icon-192.png',
-                        requireInteraction: false,
-                    },
-                    fcmOptions: {
-                        link: notification.url || '/',
-                    },
-                },
-                tokens,
-            };
+                        url: notification.url || '/'
+                    });
 
-            const response = await admin.messaging().sendEachForMulticast(message);
+                    await webpush.sendNotification(subscription, payload);
+                    successCount++;
+                } catch (err) {
+                    console.error('Send notification error:', err);
+                    failureCount++;
+                    
+                    // 無効なサブスクリプションの場合は削除
+                    if (err.statusCode === 410 || err.statusCode === 404) {
+                        await supabaseAdmin
+                            .from('users')
+                            .delete()
+                            .eq('fcm_token', user.fcm_token);
+                    }
+                }
+            });
+
+            await Promise.all(sendPromises);
 
             // ===== STEP 4: 送信済みに更新 =====
             await supabaseAdmin
@@ -68,13 +84,13 @@ export default async function handler(req, res) {
             results.push({
                 id: notification.id,
                 title: notification.title,
-                success: response.successCount,
-                failure: response.failureCount,
+                success: successCount,
+                failure: failureCount,
             });
 
             console.log(
                 `[Cron] 通知ID:${notification.id} 送信完了 `
-                + `成功:${response.successCount} 失敗:${response.failureCount}`
+                + `成功:${successCount} 失敗:${failureCount}`
             );
         }
 

@@ -14,22 +14,31 @@ export default async function handler(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { token } = req.body;
+    const { subscription } = req.body;
 
-    if (!token) {
-        return res.status(400).json({ status: 'error', message: 'Token is required' });
+    if (!subscription || !subscription.endpoint) {
+        return res.status(400).json({ status: 'error', message: 'Subscription is required' });
     }
 
     try {
+        // サブスクリプション情報をJSON文字列として保存
+        // fcm_tokenカラムにサブスクリプションJSON全体を保存
+        const subscriptionJson = JSON.stringify(subscription);
+        
         const { error } = await supabaseAdmin
             .from('users')
-            .upsert({ fcm_token: token }, { onConflict: 'fcm_token' });
+            .upsert(
+                { 
+                    fcm_token: subscriptionJson // サブスクリプションJSON全体を保存
+                }, 
+                { onConflict: 'fcm_token' }
+            );
 
         if (error) throw error;
 
-        return res.status(200).json({ status: 'ok', message: 'Token registered' });
+        return res.status(200).json({ status: 'ok', message: 'Subscription registered' });
     } catch (err) {
-        console.error('Token registration error:', err);
+        console.error('Subscription registration error:', err);
         return res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
 }

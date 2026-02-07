@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../lib/supabase.js';
-import { getFirebaseAdmin } from '../lib/firebase-admin.js';
+import { initWebPush } from '../lib/webpush.js';
 import { verifyAdmin } from '../lib/auth.js';
 
 export default async function handler(req, res) {
@@ -18,10 +18,13 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 全ユーザーのトークン取得
+        // Web Push初期化
+        const webpush = initWebPush();
+
+        // 全ユーザーのサブスクリプション取得
         const { data: users, error } = await supabaseAdmin
             .from('users')
-            .select('fcm_token');
+            .select('fcm_token'); // 実際はsubscription JSON
 
         if (error) throw error;
 
@@ -29,30 +32,45 @@ export default async function handler(req, res) {
             return res.status(200).json({ status: 'ok', sent_count: 0, message: 'No users' });
         }
 
-        const tokens = users.map(u => u.fcm_token);
-        const admin = getFirebaseAdmin();
+        let successCount = 0;
+        let failureCount = 0;
 
-        // 一斉送信（multicast）
-        const message = {
-            notification: { title, body },
-            webpush: {
-                notification: {
+        // 各ユーザーに通知送信
+        const sendPromises = users.map(async (user) => {
+            try {
+                // fcm_tokenカラムに保存されたサブスクリプションJSONをパース
+                const subscription = JSON.parse(user.fcm_token);
+                
+                const payload = JSON.stringify({
+                    title: title,
+                    body: body,
                     icon: '/icons/icon-192.png',
                     badge: '/icons/icon-192.png',
-                },
-                fcmOptions: {
-                    link: url || '/',
-                },
-            },
-            tokens,
-        };
+                    url: url || '/'
+                });
 
-        const response = await admin.messaging().sendEachForMulticast(message);
+                await webpush.sendNotification(subscription, payload);
+                successCount++;
+            } catch (err) {
+                console.error('Send notification error:', err);
+                failureCount++;
+                
+                // 無効なサブスクリプションの場合は削除
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                    await supabaseAdmin
+                        .from('users')
+                        .delete()
+                        .eq('fcm_token', user.fcm_token);
+                }
+            }
+        });
+
+        await Promise.all(sendPromises);
 
         return res.status(200).json({
             status: 'ok',
-            sent_count: response.successCount,
-            error_count: response.failureCount,
+            sent_count: successCount,
+            error_count: failureCount,
         });
     } catch (err) {
         console.error('Send error:', err);

@@ -1,32 +1,21 @@
-// Firebase設定
-const firebaseConfig = {
-    apiKey: "AIzaSyAA-bPkKybAiAqWcTPt2oDp8Gfo5L-9IIc",
-    authDomain: "pwanarukami.firebaseapp.com",
-    projectId: "pwanarukami",
-    storageBucket: "pwanarukami.firebasestorage.app",
-    messagingSenderId: "958557719636",
-    appId: "1:958557719636:web:4b96583c5c62c3692971c1"
-};
+// VAPID公開鍵（環境変数から設定、または直接記述）
+// この値は公開しても問題ありません
+const VAPID_PUBLIC_KEY = "BNLbxfSORptI6uefID7olqi38jJ6vnQMqxhvbczNu44nNy1mcP0SPDyCqTtmt3WiSIckAmqIAfFu3y51DH-iKcM";
 
-// VAPID Key（Firebase Console → Cloud Messaging → Web Push証明書 → 鍵ペア から取得）
-const VAPID_KEY = "BLJ2ifRuo7p8tWbe2QfzPylTggsWnT0gDvJxK15e6kOM86SOLw-Mx7gwSDX-i4yhRPdCkxhHYQrrrFUr8BOLTZI";
-
-// Firebase SDK を動的にインポート
-let messaging = null;
-
-async function initFirebase() {
-    try {
-        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-        const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js');
-        
-        const app = initializeApp(firebaseConfig);
-        messaging = getMessaging(app);
-        
-        return { getToken };
-    } catch (error) {
-        console.error('Firebase初期化エラー:', error);
-        throw error;
+// VAPIDキーをURL Safe Base64からUint8Arrayに変換
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+    
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
     }
+    return outputArray;
 }
 
 // iOS判定
@@ -56,6 +45,45 @@ async function registerServiceWorker() {
     }
 }
 
+// Push通知のサブスクリプション取得
+async function subscribeToPush(registration) {
+    try {
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+        
+        console.log('Push Subscription:', subscription);
+        return subscription;
+    } catch (error) {
+        console.error('Push Subscriptionエラー:', error);
+        throw error;
+    }
+}
+
+// サブスクリプションをJSON形式に変換
+function subscriptionToJSON(subscription) {
+    const keys = subscription.getKey ? {
+        p256dh: arrayBufferToBase64(subscription.getKey('p256dh')),
+        auth: arrayBufferToBase64(subscription.getKey('auth'))
+    } : null;
+    
+    return {
+        endpoint: subscription.endpoint,
+        keys: keys
+    };
+}
+
+// ArrayBufferをBase64に変換
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
+
 // 通知許可リクエスト
 async function requestNotificationPermission() {
     const button = document.getElementById('enableNotifications');
@@ -71,44 +99,40 @@ async function requestNotificationPermission() {
             return;
         }
 
+        // Push API対応チェック
+        if (!('PushManager' in window)) {
+            throw new Error('このブラウザはPush通知に対応していません');
+        }
+
         button.disabled = true;
         button.textContent = '設定中...';
 
         // Service Worker登録
-        await registerServiceWorker();
-
-        // Firebase初期化
-        const { getToken } = await initFirebase();
+        const registration = await registerServiceWorker();
+        
+        // Service Workerが完全に準備できるまで待つ
+        await registration.ready;
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // 通知許可リクエスト
         const permission = await Notification.requestPermission();
 
         if (permission === 'granted') {
-            // Service Workerが完全に準備できるまで待つ
-            const registration = await navigator.serviceWorker.ready;
+            // Push Subscription取得
+            const subscription = await subscribeToPush(registration);
             
-            // 少し待ってからトークン取得（Service Workerの初期化を確実にする）
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // FCMトークン取得
-            const token = await getToken(messaging, {
-                vapidKey: VAPID_KEY,
-                serviceWorkerRegistration: registration
-            });
+            // サブスクリプション情報をJSONに変換
+            const subscriptionData = subscriptionToJSON(subscription);
 
-            if (!token) {
-                throw new Error('トークン取得失敗');
-            }
+            console.log('Push Subscription Data:', subscriptionData);
 
-            console.log('FCMトークン:', token);
-
-            // サーバーにトークン送信
+            // サーバーにサブスクリプション送信
             const response = await fetch('/api/register-token', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ token }),
+                body: JSON.stringify({ subscription: subscriptionData }),
             });
 
             const result = await response.json();
