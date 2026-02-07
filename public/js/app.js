@@ -8,8 +8,8 @@ const firebaseConfig = {
     appId: "1:958557719636:web:4b96583c5c62c3692971c1"
 };
 
-// VAPID Key（Firebase Console → Cloud Messaging → Web Push証明書 から取得）
-const VAPID_KEY = "Agql7iRrmtAHA6uu3PfP0scDjUPx6ZumOSR6CwoYors";
+// VAPID Key（Firebase Console → Cloud Messaging → Web Push証明書 → 鍵ペア から取得）
+const VAPID_KEY = "BLJ2ifRuo7p8tWbe2QfzPylTggsWnT0gDvJxK15e6kOM86SOLw-Mx7gwSDX-i4yhRPdCkxhHYQrrrFUr8BOLTZI";
 
 // Firebase SDK を動的にインポート
 let messaging = null;
