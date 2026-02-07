@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/send-scheduled",
+      "schedule": "0 * * * *"
+    }
+  ],
+  "rewrites": [
+    { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/admin/create", "destination": "/admin/create.html" },
+    { "source": "/thanks", "destination": "/pages/thanks.html" },
+    { "source": "/", "destination": "/pages/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
+  ]
+}

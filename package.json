@@ -1,0 +1,24 @@
+{
+  "name": "narukami-mvp",
+  "version": "1.0.0",
+  "description": "PWA × FCM プッシュ通知 × ステップ配信 MVP",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'No build step required'"
+  },
+  "keywords": [
+    "pwa",
+    "fcm",
+    "push-notification"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "firebase": "^12.9.0",
+    "firebase-admin": "^12.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

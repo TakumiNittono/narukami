@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narukami 管理画面</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <h1>Narukami 管理画面</h1>
+            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
+            <button id="loginButton" class="btn-primary">ログイン</button>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- メイン画面 -->
+    <div id="mainScreen" class="main-screen" style="display: none;">
+        <header class="header">
+            <h1>Narukami 管理画面</h1>
+            <button id="logoutButton" class="btn-secondary">ログアウト</button>
+        </header>
+
+        <div class="container">
+            <div class="stats">
+                <p>登録ユーザー数: <span id="userCount">-</span>人</p>
+            </div>
+
+            <div class="actions">
+                <a href="/admin/create" class="btn-primary">+ 新規通知作成</a>
+            </div>
+
+            <div class="notifications-section">
+                <h2>通知一覧</h2>
+                <div id="notificationsList" class="notifications-list">
+                    <p class="loading">読み込み中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/admin.js"></script>
+</body>
+</html>

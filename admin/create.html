@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通知作成 - Narukami 管理画面</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <h1>Narukami 管理画面</h1>
+            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
+            <button id="loginButton" class="btn-primary">ログイン</button>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- 作成画面 -->
+    <div id="createScreen" class="create-screen" style="display: none;">
+        <header class="header">
+            <h1>通知作成</h1>
+            <a href="/admin" class="btn-secondary">戻る</a>
+        </header>
+
+        <div class="container">
+            <form id="createForm" class="create-form">
+                <div class="form-group">
+                    <label for="title">タイトル <span class="required">*</span></label>
+                    <input type="text" id="title" name="title" required maxlength="100" class="form-input">
+                    <span class="form-hint">最大100文字</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="body">本文 <span class="required">*</span></label>
+                    <textarea id="body" name="body" required maxlength="500" rows="5" class="form-textarea"></textarea>
+                    <span class="form-hint">2〜3行推奨、最大500文字</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="url">タップ時のURL（省略可）</label>
+                    <input type="url" id="url" name="url" class="form-input" placeholder="https://example.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="send_at">送信日時 <span class="required">*</span></label>
+                    <input type="datetime-local" id="send_at" name="send_at" required class="form-input">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">予約作成</button>
+                    <a href="/admin" class="btn-secondary">キャンセル</a>
+                </div>
+
+                <div id="formError" class="error-message" style="display: none;"></div>
+                <div id="formSuccess" class="success-message" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/admin/admin.js"></script>
+    <script>
+        // 作成画面用の初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth().then(() => {
+                document.getElementById('createScreen').style.display = 'block';
+                
+                // フォーム送信処理
+                document.getElementById('createForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const title = document.getElementById('title').value;
+                    const body = document.getElementById('body').value;
+                    const url = document.getElementById('url').value;
+                    const send_at = document.getElementById('send_at').value;
+
+                    if (!title || !body || !send_at) {
+                        showError('タイトル、本文、送信日時は必須です');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/api/notifications/create', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                            },
+                            body: JSON.stringify({ title, body, url, send_at })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.status === 'ok') {
+                            showSuccess('通知を作成しました');
+                            setTimeout(() => {
+                                window.location.href = '/admin';
+                            }, 1000);
+                        } else {
+                            showError(result.message || '作成に失敗しました');
+                        }
+                    } catch (error) {
+                        showError('エラーが発生しました: ' + error.message);
+                    }
+                });
+            });
+
+            function showError(message) {
+                const errorDiv = document.getElementById('formError');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                document.getElementById('formSuccess').style.display = 'none';
+            }
+
+            function showSuccess(message) {
+                const successDiv = document.getElementById('formSuccess');
+                successDiv.textContent = message;
+                successDiv.style.display = 'block';
+                document.getElementById('formError').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

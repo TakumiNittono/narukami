@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="プッシュ通知で最新情報をお届けします">
+    
+    <!-- PWA設定 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4A90D9">
+    
+    <!-- iOS PWA用 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Narukami">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    
+    <title>Narukami - プッシュ通知でお知らせ</title>
+    <link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">📱</div>
+            <h1>Narukami</h1>
+            <p class="subtitle">プッシュ通知で最新情報をお届け</p>
+        </div>
+
+        <div class="content">
+            <div class="features">
+                <p>📱 最新情報をプッシュ通知でお届けします</p>
+                <ul>
+                    <li>新着情報をすぐにキャッチ</li>
+                    <li>設定カンタン、1タップ</li>
+                    <li>いつでも解除OK</li>
+                </ul>
+            </div>
+
+            <button id="enableNotifications" class="btn-primary">
+                通知を受け取る 🔔
+            </button>
+
+            <div id="iosInstructions" class="ios-instructions" style="display: none;">
+                <hr>
+                <h3>📲 iPhoneの方へ</h3>
+                <ol>
+                    <li>下の共有ボタン <span class="share-icon">⬆</span> をタップ</li>
+                    <li>「ホーム画面に追加」を選択</li>
+                    <li>追加したアイコンから開き直してください</li>
+                </ol>
+                <p class="note">※ iPhoneではホーム画面に追加してから通知を許可できます</p>
+            </div>
+
+            <div id="statusMessage" class="status-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script type="module" src="/js/app.js"></script>
+</body>
+</html>
