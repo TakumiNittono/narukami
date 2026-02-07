@@ -39,7 +39,21 @@ export default async function handler(req, res) {
         const sendPromises = users.map(async (user) => {
             try {
                 // fcm_tokenカラムに保存されたサブスクリプションJSONをパース
-                const subscription = JSON.parse(user.fcm_token);
+                let subscription;
+                try {
+                    subscription = JSON.parse(user.fcm_token);
+                } catch (parseError) {
+                    console.error('Failed to parse subscription JSON:', parseError);
+                    failureCount++;
+                    return;
+                }
+                
+                // サブスクリプションの形式チェック
+                if (!subscription.endpoint || !subscription.keys) {
+                    console.error('Invalid subscription format:', subscription);
+                    failureCount++;
+                    return;
+                }
                 
                 const payload = JSON.stringify({
                     title: title,
@@ -56,11 +70,18 @@ export default async function handler(req, res) {
                 failureCount++;
                 
                 // 無効なサブスクリプションの場合は削除
+                // 410: Gone (サブスクリプションが無効)
+                // 404: Not Found (サブスクリプションが見つからない)
+                // 403: Forbidden (認証エラー、VAPIDキーが間違っている可能性)
                 if (err.statusCode === 410 || err.statusCode === 404) {
-                    await supabaseAdmin
-                        .from('users')
-                        .delete()
-                        .eq('fcm_token', user.fcm_token);
+                    try {
+                        await supabaseAdmin
+                            .from('users')
+                            .delete()
+                            .eq('fcm_token', user.fcm_token);
+                    } catch (deleteError) {
+                        console.error('Failed to delete invalid subscription:', deleteError);
+                    }
                 }
             }
         });
