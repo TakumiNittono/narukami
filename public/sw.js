@@ -1,19 +1,33 @@
 // PWA用Service Worker
-const CACHE_NAME = 'narukami-v1';
+const CACHE_NAME = 'narukami-v2';
 const CACHE_URLS = [
     '/',
-    '/thanks',
+    '/thanks.html',
     '/styles/style.css',
     '/js/app.js',
     '/icons/icon-192.png',
-    '/icons/icon-512.png'
+    '/icons/icon-512.png',
+    '/manifest.json'
 ];
 
 // インストール時にキャッシュ
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(CACHE_URLS))
+            .then((cache) => {
+                // 各URLを個別に追加してエラーを回避
+                return Promise.allSettled(
+                    CACHE_URLS.map(url => 
+                        cache.add(url).catch(err => {
+                            console.warn(`Failed to cache ${url}:`, err);
+                            return null;
+                        })
+                    )
+                );
+            })
+            .then(() => {
+                console.log('[SW] Cache installed successfully');
+            })
             .catch((err) => console.error('キャッシュエラー:', err))
     );
     self.skipWaiting();
