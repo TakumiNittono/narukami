@@ -7,9 +7,7 @@
   ],
   "rewrites": [
     { "source": "/admin", "destination": "/admin/index.html" },
-    { "source": "/admin/create", "destination": "/admin/create.html" },
-    { "source": "/thanks", "destination": "/pages/thanks.html" },
-    { "source": "/", "destination": "/pages/index.html" }
+    { "source": "/admin/create", "destination": "/admin/create.html" }
   ],
   "headers": [
     {
