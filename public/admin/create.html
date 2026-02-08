@@ -353,29 +353,31 @@
                         body: JSON.stringify(payload)
                     });
 
-                        let result;
-                        try {
-                            result = await response.json();
-                        } catch (jsonError) {
-                            const text = await response.text();
-                            console.error('Invalid JSON response:', text);
-                            showError('サーバーエラーが発生しました。レスポンスが不正です: ' + text.substring(0, 100));
-                            return;
-                        }
-
-                        if (result.status === 'ok') {
-                            showSuccess('通知を作成しました');
-                            setTimeout(() => {
-                                window.location.href = '/admin';
-                            }, 1000);
-                        } else {
-                            showError(result.message || '作成に失敗しました');
-                        }
-                    } catch (error) {
-                        console.error('Request error:', error);
-                        showError('エラーが発生しました: ' + error.message);
+                    let result;
+                    try {
+                        result = await response.json();
+                    } catch (jsonError) {
+                        const text = await response.text();
+                        console.error('Invalid JSON response:', text);
+                        showError('サーバーエラーが発生しました。レスポンスが不正です: ' + text.substring(0, 100));
+                        return;
                     }
-                });
+
+                    if (result.status === 'ok') {
+                        showSuccess('通知を作成しました');
+                        setTimeout(() => {
+                            window.location.href = '/admin';
+                        }, 1000);
+                    } else {
+                        showError(result.message || '作成に失敗しました');
+                    }
+                } catch (error) {
+                    console.error('Request error:', error);
+                    showError('エラーが発生しました: ' + error.message);
+                }
+            });
+            } else {
+                console.error('createForm element not found');
             }
         });
 
