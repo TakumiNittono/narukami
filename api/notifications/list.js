@@ -11,10 +11,19 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { data, error } = await supabaseAdmin
+        const tenantId = req.query.tenant_id;
+
+        let query = supabaseAdmin
             .from('notifications')
             .select('*')
             .order('created_at', { ascending: false });
+
+        // テナントIDでフィルタリング（フルマネージド対応）
+        if (tenantId) {
+            query = query.eq('tenant_id', tenantId);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 

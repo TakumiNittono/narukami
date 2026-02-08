@@ -37,27 +37,38 @@ export default async function handler(req, res) {
     }
 
     try {
+        const tenantId = req.body.tenant_id; // フルマネージド対応
+
         // 送信対象ユーザー数を計算
         let targetUserCount = 0;
+        let userQuery = supabaseAdmin.from('users').select('*', { count: 'exact', head: true });
+        
+        // テナントIDでフィルタリング
+        if (tenantId) {
+            userQuery = userQuery.eq('tenant_id', tenantId);
+        }
         
         if (target_type === 'all') {
-            const { count } = await supabaseAdmin
-                .from('users')
-                .select('*', { count: 'exact', head: true });
+            const { count } = await userQuery;
             targetUserCount = count || 0;
         } else if (target_type === 'segment' && target_segment_id) {
             // セグメントのユーザー数を取得
-            const { data: segment } = await supabaseAdmin
+            let segmentQuery = supabaseAdmin
                 .from('user_segments')
                 .select('filter_conditions')
-                .eq('id', target_segment_id)
-                .single();
+                .eq('id', target_segment_id);
+            
+            if (tenantId) {
+                segmentQuery = segmentQuery.eq('tenant_id', tenantId);
+            }
+            
+            const { data: segment } = await segmentQuery.single();
             
             if (segment) {
-                targetUserCount = await getFilteredUserCount(segment.filter_conditions);
+                targetUserCount = await getFilteredUserCount(segment.filter_conditions, tenantId);
             }
         } else if (target_type === 'custom_filter' && target_filter) {
-            targetUserCount = await getFilteredUserCount(target_filter);
+            targetUserCount = await getFilteredUserCount(target_filter, tenantId);
         }
 
         const { data, error } = await supabaseAdmin
@@ -71,7 +82,8 @@ export default async function handler(req, res) {
                 target_segment_id: target_segment_id || null,
                 target_filter: target_filter || null,
                 target_user_count: targetUserCount,
-                status: 'scheduled'
+                status: 'scheduled',
+                tenant_id: tenantId || null // フルマネージド対応
             })
             .select();
 
@@ -92,8 +104,13 @@ export default async function handler(req, res) {
 }
 
 // フィルター条件に基づいてユーザー数を取得するヘルパー関数
-async function getFilteredUserCount(filterConditions) {
+async function getFilteredUserCount(filterConditions, tenantId) {
     let query = supabaseAdmin.from('users').select('*', { count: 'exact', head: true });
+
+    // テナントIDでフィルタリング
+    if (tenantId) {
+        query = query.eq('tenant_id', tenantId);
+    }
 
     if (!filterConditions || !filterConditions.conditions || !Array.isArray(filterConditions.conditions)) {
         // フィルター条件がない場合は全ユーザー数

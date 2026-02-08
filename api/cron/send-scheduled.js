@@ -25,17 +25,6 @@ export default async function handler(req, res) {
             return res.status(200).json({ status: 'ok', message: 'No pending notifications' });
         }
 
-        // ===== STEP 2: 全ユーザートークン取得 =====
-        const { data: users, error: userError } = await supabaseAdmin
-            .from('users')
-            .select('id, fcm_token'); // 実際はsubscription JSON
-
-        if (userError) throw userError;
-
-        if (!users || users.length === 0) {
-            return res.status(200).json({ status: 'ok', message: 'No users to send' });
-        }
-
         const results = [];
 
         // ===== STEP 3: 通知ごとに送信 =====
@@ -43,23 +32,50 @@ export default async function handler(req, res) {
             let successCount = 0;
             let failureCount = 0;
 
+            // テナントIDでユーザーを取得（マルチテナント対応）
+            let userQuery = supabaseAdmin
+                .from('users')
+                .select('id, fcm_token');
+
+            if (notification.tenant_id) {
+                userQuery = userQuery.eq('tenant_id', notification.tenant_id);
+            }
+
+            const { data: allUsers, error: userError } = await userQuery;
+
+            if (userError) throw userError;
+
+            if (!allUsers || allUsers.length === 0) {
+                console.log(`[Cron] 通知ID:${notification.id} 対象ユーザーなし`);
+                await supabaseAdmin
+                    .from('notifications')
+                    .update({ sent: true, status: 'sent' })
+                    .eq('id', notification.id);
+                continue;
+            }
+
             // 送信対象ユーザーを取得（フィルタリング対応）
-            let targetUsers = users;
+            let targetUsers = allUsers;
             
             if (notification.target_type === 'segment' && notification.target_segment_id) {
                 // セグメント指定の場合
-                const { data: segment } = await supabaseAdmin
+                let segmentQuery = supabaseAdmin
                     .from('user_segments')
                     .select('filter_conditions')
-                    .eq('id', notification.target_segment_id)
-                    .single();
+                    .eq('id', notification.target_segment_id);
+                
+                if (notification.tenant_id) {
+                    segmentQuery = segmentQuery.eq('tenant_id', notification.tenant_id);
+                }
+                
+                const { data: segment } = await segmentQuery.single();
                 
                 if (segment) {
-                    targetUsers = await getFilteredUsers(segment.filter_conditions);
+                    targetUsers = await getFilteredUsers(segment.filter_conditions, notification.tenant_id);
                 }
             } else if (notification.target_type === 'custom_filter' && notification.target_filter) {
                 // カスタムフィルター指定の場合
-                targetUsers = await getFilteredUsers(notification.target_filter);
+                targetUsers = await getFilteredUsers(notification.target_filter, notification.tenant_id);
             }
             // target_type === 'all' の場合は全ユーザーを使用
 
@@ -185,8 +201,13 @@ async function recordSentEvent(notificationId, notificationType, userId) {
 }
 
 // フィルター条件に基づいてユーザーを取得するヘルパー関数
-async function getFilteredUsers(filterConditions) {
+async function getFilteredUsers(filterConditions, tenantId) {
     let query = supabaseAdmin.from('users').select('id, fcm_token');
+
+    // テナントIDでフィルタリング
+    if (tenantId) {
+        query = query.eq('tenant_id', tenantId);
+    }
 
     if (!filterConditions || !filterConditions.conditions || !Array.isArray(filterConditions.conditions)) {
         // フィルター条件がない場合は全ユーザー

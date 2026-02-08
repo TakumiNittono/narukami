@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フルマネージド管理画面 - NARUKAMI</title>
+    <link rel="stylesheet" href="admin.css">
+    <style>
+        .managed-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .header-section h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tenants-list, .tasks-list, .reports-list {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .list-item {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        .list-item:hover {
+            background: #f5f5f5;
+        }
+        .item-info h4 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+        .item-info p {
+            margin: 4px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        .item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-completed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .status-urgent {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-group textarea {
+            min-height: 100px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="managed-container">
+        <div class="header-section">
+            <h1>フルマネージド管理画面</h1>
+            <button class="btn btn-primary" onclick="showCreateTenantModal()">新規顧客追加</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>総顧客数</h3>
+                <div class="value" id="totalTenants">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>アクティブ顧客</h3>
+                <div class="value" id="activeTenants">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>未対応タスク</h3>
+                <div class="value" id="pendingTasks">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>今月の総送信数</h3>
+                <div class="value" id="monthlySent">0</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('tenants')">顧客一覧</button>
+            <button class="tab" onclick="switchTab('tasks')">タスク管理</button>
+            <button class="tab" onclick="switchTab('reports')">レポート</button>
+        </div>
+
+        <div id="tenants-tab" class="tab-content active">
+            <div class="tenants-list" id="tenantsList">
+                <div class="empty-state">読み込み中...</div>
+            </div>
+        </div>
+
+        <div id="tasks-tab" class="tab-content">
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="showCreateTaskModal()">新規タスク作成</button>
+            </div>
+            <div class="tasks-list" id="tasksList">
+                <div class="empty-state">読み込み中...</div>
+            </div>
+        </div>
+
+        <div id="reports-tab" class="tab-content">
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="showCreateReportModal()">新規レポート作成</button>
+            </div>
+            <div class="reports-list" id="reportsList">
+                <div class="empty-state">読み込み中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顧客作成モーダル -->
+    <div id="createTenantModal" class="modal">
+        <div class="modal-content">
+            <h2>新規顧客追加</h2>
+            <form id="createTenantForm">
+                <div class="form-group">
+                    <label>顧客名 *</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>プラン *</label>
+                    <select name="plan" required>
+                        <option value="basic">Basic (¥10万/月)</option>
+                        <option value="pro">Pro (¥25万/月)</option>
+                        <option value="enterprise">Enterprise (¥50万/月)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>月間送信上限</label>
+                    <input type="number" name="monthly_limit" value="10000">
+                </div>
+                <div class="form-group">
+                    <label>契約開始日</label>
+                    <input type="date" name="contract_start_date">
+                </div>
+                <div class="form-group">
+                    <label>契約終了日（任意）</label>
+                    <input type="date" name="contract_end_date">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createTenantModal')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">作成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- タスク作成モーダル -->
+    <div id="createTaskModal" class="modal">
+        <div class="modal-content">
+            <h2>新規タスク作成</h2>
+            <form id="createTaskForm">
+                <div class="form-group">
+                    <label>顧客 *</label>
+                    <select name="tenant_id" id="taskTenantSelect" required></select>
+                </div>
+                <div class="form-group">
+                    <label>タスクタイプ *</label>
+                    <select name="task_type" required>
+                        <option value="notification_create">通知作成</option>
+                        <option value="step_sequence_create">ステップ配信設計</option>
+                        <option value="segment_create">セグメント作成</option>
+                        <option value="report_create">レポート作成</option>
+                        <option value="optimization">最適化</option>
+                        <option value="support">サポート</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>タイトル *</label>
+                    <input type="text" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label>説明</label>
+                    <textarea name="description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>優先度</label>
+                    <select name="priority">
+                        <option value="low">低</option>
+                        <option value="normal" selected>通常</option>
+                        <option value="high">高</option>
+                        <option value="urgent">緊急</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>期限</label>
+                    <input type="date" name="due_date">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createTaskModal')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">作成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- レポート作成モーダル -->
+    <div id="createReportModal" class="modal">
+        <div class="modal-content">
+            <h2>新規レポート作成</h2>
+            <form id="createReportForm">
+                <div class="form-group">
+                    <label>顧客 *</label>
+                    <select name="tenant_id" id="reportTenantSelect" required></select>
+                </div>
+                <div class="form-group">
+                    <label>レポートタイプ *</label>
+                    <select name="report_type" required>
+                        <option value="weekly">週次</option>
+                        <option value="monthly" selected>月次</option>
+                        <option value="custom">カスタム</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>期間開始日 *</label>
+                    <input type="date" name="period_start" required>
+                </div>
+                <div class="form-group">
+                    <label>期間終了日 *</label>
+                    <input type="date" name="period_end" required>
+                </div>
+                <div class="form-group">
+                    <label>タイトル *</label>
+                    <input type="text" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label>サマリー</label>
+                    <textarea name="summary"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createReportModal')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">作成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const ADMIN_PASSWORD = localStorage.getItem('admin_password') || prompt('管理者パスワードを入力してください:');
+        if (ADMIN_PASSWORD) {
+            localStorage.setItem('admin_password', ADMIN_PASSWORD);
+        }
+
+        let tenants = [];
+        let tasks = [];
+        let reports = [];
+
+        async function loadData() {
+            await Promise.all([
+                loadTenants(),
+                loadTasks(),
+                loadReports(),
+                loadStats()
+            ]);
+        }
+
+        async function loadTenants() {
+            try {
+                const res = await fetch('/api/tenants?action=list', {
+                    headers: {
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    }
+                });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    tenants = result.data || [];
+                    renderTenants();
+                }
+            } catch (err) {
+                console.error('Failed to load tenants:', err);
+            }
+        }
+
+        async function loadTasks() {
+            try {
+                const res = await fetch('/api/tasks?action=list', {
+                    headers: {
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    }
+                });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    tasks = result.data || [];
+                    renderTasks();
+                }
+            } catch (err) {
+                console.error('Failed to load tasks:', err);
+            }
+        }
+
+        async function loadReports() {
+            try {
+                const res = await fetch('/api/reports?action=list', {
+                    headers: {
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    }
+                });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    reports = result.data || [];
+                    renderReports();
+                }
+            } catch (err) {
+                console.error('Failed to load reports:', err);
+            }
+        }
+
+        async function loadStats() {
+            const totalTenants = tenants.length;
+            const activeTenants = tenants.filter(t => t.status === 'active').length;
+            const pendingTasks = tasks.filter(t => ['pending', 'in_progress'].includes(t.status)).length;
+            const monthlySent = tenants.reduce((sum, t) => sum + (t.monthly_sent_count || 0), 0);
+
+            document.getElementById('totalTenants').textContent = totalTenants;
+            document.getElementById('activeTenants').textContent = activeTenants;
+            document.getElementById('pendingTasks').textContent = pendingTasks;
+            document.getElementById('monthlySent').textContent = monthlySent.toLocaleString();
+        }
+
+        function renderTenants() {
+            const container = document.getElementById('tenantsList');
+            if (tenants.length === 0) {
+                container.innerHTML = '<div class="empty-state">顧客が登録されていません</div>';
+                return;
+            }
+
+            container.innerHTML = tenants.map(tenant => `
+                <div class="list-item">
+                    <div class="item-info">
+                        <h4>${tenant.name}</h4>
+                        <p>プラン: ${tenant.plan} | 月額: ¥${(tenant.monthly_fee || 0).toLocaleString()}</p>
+                        <p>ユーザー数: ${tenant.stats?.user_count || 0} | 通知数: ${tenant.stats?.notification_count || 0} | 未対応タスク: ${tenant.stats?.pending_task_count || 0}</p>
+                        <p>送信数: ${tenant.monthly_sent_count || 0} / ${tenant.monthly_limit || 0}</p>
+                    </div>
+                    <div class="item-actions">
+                        <span class="status-badge status-${tenant.status}">${tenant.status}</span>
+                        <button class="btn btn-primary" onclick="viewTenant(${tenant.id})">詳細</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasksList');
+            if (tasks.length === 0) {
+                container.innerHTML = '<div class="empty-state">タスクがありません</div>';
+                return;
+            }
+
+            container.innerHTML = tasks.map(task => `
+                <div class="list-item">
+                    <div class="item-info">
+                        <h4>${task.title}</h4>
+                        <p>顧客: ${task.tenant_name} | タイプ: ${task.task_type}</p>
+                        <p>${task.description || ''}</p>
+                        ${task.due_date ? `<p>期限: ${task.due_date}</p>` : ''}
+                    </div>
+                    <div class="item-actions">
+                        <span class="status-badge status-${task.status}">${task.status}</span>
+                        ${task.status !== 'completed' ? `<button class="btn btn-success" onclick="completeTask(${task.id})">完了</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderReports() {
+            const container = document.getElementById('reportsList');
+            if (reports.length === 0) {
+                container.innerHTML = '<div class="empty-state">レポートがありません</div>';
+                return;
+            }
+
+            container.innerHTML = reports.map(report => `
+                <div class="list-item">
+                    <div class="item-info">
+                        <h4>${report.title}</h4>
+                        <p>期間: ${report.period_start} ～ ${report.period_end}</p>
+                        <p>${report.summary || ''}</p>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn btn-primary" onclick="viewReport(${report.id})">表示</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+
+        function showCreateTenantModal() {
+            document.getElementById('createTenantModal').classList.add('active');
+            document.getElementById('createTenantForm').reset();
+        }
+
+        function showCreateTaskModal() {
+            // 顧客選択肢を設定
+            const select = document.getElementById('taskTenantSelect');
+            select.innerHTML = tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            
+            document.getElementById('createTaskModal').classList.add('active');
+            document.getElementById('createTaskForm').reset();
+        }
+
+        function showCreateReportModal() {
+            // 顧客選択肢を設定
+            const select = document.getElementById('reportTenantSelect');
+            select.innerHTML = tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            
+            document.getElementById('createReportModal').classList.add('active');
+            document.getElementById('createReportForm').reset();
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        document.getElementById('createTenantForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+
+            try {
+                const res = await fetch('/api/tenants?action=create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    alert('顧客を追加しました');
+                    closeModal('createTenantModal');
+                    await loadData();
+                } else {
+                    alert('エラー: ' + result.message);
+                }
+            } catch (err) {
+                alert('エラーが発生しました');
+                console.error(err);
+            }
+        });
+
+        document.getElementById('createTaskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+
+            try {
+                const res = await fetch('/api/tasks?action=create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    alert('タスクを作成しました');
+                    closeModal('createTaskModal');
+                    await loadData();
+                } else {
+                    alert('エラー: ' + result.message);
+                }
+            } catch (err) {
+                alert('エラーが発生しました');
+                console.error(err);
+            }
+        });
+
+        document.getElementById('createReportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+
+            try {
+                const res = await fetch('/api/reports?action=create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    alert('レポートを作成しました');
+                    closeModal('createReportModal');
+                    await loadData();
+                } else {
+                    alert('エラー: ' + result.message);
+                }
+            } catch (err) {
+                alert('エラーが発生しました');
+                console.error(err);
+            }
+        });
+
+        async function completeTask(taskId) {
+            if (!confirm('このタスクを完了にしますか？')) return;
+
+            try {
+                const res = await fetch('/api/tasks?action=complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    },
+                    body: JSON.stringify({ id: taskId })
+                });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    await loadData();
+                } else {
+                    alert('エラー: ' + result.message);
+                }
+            } catch (err) {
+                alert('エラーが発生しました');
+                console.error(err);
+            }
+        }
+
+        function viewTenant(tenantId) {
+            window.location.href = `/admin/managed-tenant.html?id=${tenantId}`;
+        }
+
+        function viewReport(reportId) {
+            window.location.href = `/admin/managed-report.html?id=${reportId}`;
+        }
+
+        // 初期読み込み
+        loadData();
+    </script>
+</body>
+</html>

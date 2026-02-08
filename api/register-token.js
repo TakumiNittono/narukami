@@ -122,13 +122,19 @@ export default async function handler(req, res) {
 /**
  * 新規ユーザーを有効なステップ配信シーケンスに登録する
  */
-async function enrollUserInStepSequences(userId) {
+async function enrollUserInStepSequences(userId, tenantId) {
     try {
-        // 有効なシーケンスを取得
-        const { data: activeSequences, error: seqError } = await supabaseAdmin
+        // 有効なシーケンスを取得（テナントIDでフィルタリング）
+        let seqQuery = supabaseAdmin
             .from('step_sequences')
             .select('id')
             .eq('is_active', true);
+        
+        if (tenantId) {
+            seqQuery = seqQuery.eq('tenant_id', tenantId);
+        }
+        
+        const { data: activeSequences, error: seqError } = await seqQuery;
 
         if (seqError) {
             console.error('Failed to fetch active sequences:', seqError);

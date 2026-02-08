@@ -27,6 +27,8 @@ export default async function handler(req, res) {
 
 // overview処理
 async function handleOverview(req, res) {
+    const tenantId = req.query.tenant_id; // フルマネージド対応
+
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekStart = new Date(todayStart);
@@ -35,45 +37,61 @@ async function handleOverview(req, res) {
     lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
     // 1. 総ユーザー数
-    const { count: totalUsers, error: usersError } = await supabaseAdmin
+    let usersQuery = supabaseAdmin
         .from('users')
         .select('*', { count: 'exact', head: true });
+    
+    if (tenantId) {
+        usersQuery = usersQuery.eq('tenant_id', tenantId);
+    }
+
+    const { count: totalUsers, error: usersError } = await usersQuery;
 
     if (usersError) throw usersError;
 
     // 2. 今日の新規登録
-    const { count: newUsersToday } = await supabaseAdmin
+    let newUsersTodayQuery = supabaseAdmin
         .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', todayStart.toISOString());
+    if (tenantId) newUsersTodayQuery = newUsersTodayQuery.eq('tenant_id', tenantId);
+    const { count: newUsersToday } = await newUsersTodayQuery;
 
     // 3. 今週の新規登録
-    const { count: newUsersThisWeek } = await supabaseAdmin
+    let newUsersThisWeekQuery = supabaseAdmin
         .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', weekStart.toISOString());
+    if (tenantId) newUsersThisWeekQuery = newUsersThisWeekQuery.eq('tenant_id', tenantId);
+    const { count: newUsersThisWeek } = await newUsersThisWeekQuery;
 
     // 4. 先週の新規登録（比較用）
-    const { count: newUsersLastWeek } = await supabaseAdmin
+    let newUsersLastWeekQuery = supabaseAdmin
         .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', lastWeekStart.toISOString())
         .lt('created_at', weekStart.toISOString());
+    if (tenantId) newUsersLastWeekQuery = newUsersLastWeekQuery.eq('tenant_id', tenantId);
+    const { count: newUsersLastWeek } = await newUsersLastWeekQuery;
 
     const activeSubscribers = totalUsers || 0;
 
     // 6. 総通知送信数
-    const { count: totalNotificationsSent } = await supabaseAdmin
+    let notificationsQuery = supabaseAdmin
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('sent', true)
         .is('deleted_at', null);
+    if (tenantId) notificationsQuery = notificationsQuery.eq('tenant_id', tenantId);
+    const { count: totalNotificationsSent } = await notificationsQuery;
 
     // 7. 平均開封率・平均CTR
-    const { data: stats } = await supabaseAdmin
+    let statsQuery = supabaseAdmin
         .from('notification_stats')
         .select('open_rate, ctr, total_sent')
         .gt('total_sent', 0);
+    if (tenantId) statsQuery = statsQuery.eq('tenant_id', tenantId);
+    const { data: stats } = await statsQuery;
 
     let avgOpenRate = 0;
     let avgCtr = 0;
@@ -94,12 +112,14 @@ async function handleOverview(req, res) {
     }
 
     // 8. 先週の平均開封率・CTR（比較用）
-    const { data: lastWeekStats } = await supabaseAdmin
+    let lastWeekStatsQuery = supabaseAdmin
         .from('notification_stats')
         .select('open_rate, ctr, total_sent, updated_at')
         .gt('total_sent', 0)
         .gte('updated_at', lastWeekStart.toISOString())
         .lt('updated_at', weekStart.toISOString());
+    if (tenantId) lastWeekStatsQuery = lastWeekStatsQuery.eq('tenant_id', tenantId);
+    const { data: lastWeekStats } = await lastWeekStatsQuery;
 
     let lastWeekAvgOpenRate = 0;
     let lastWeekAvgCtr = 0;
@@ -132,10 +152,12 @@ async function handleOverview(req, res) {
         ? ((avgCtr - lastWeekAvgCtr) / lastWeekAvgCtr * 100).toFixed(1)
         : avgCtr > 0 ? '100.0' : '0.0';
 
-    const { count: usersLastWeek } = await supabaseAdmin
+    let usersLastWeekQuery = supabaseAdmin
         .from('users')
         .select('*', { count: 'exact', head: true })
         .lt('created_at', weekStart.toISOString());
+    if (tenantId) usersLastWeekQuery = usersLastWeekQuery.eq('tenant_id', tenantId);
+    const { count: usersLastWeek } = await usersLastWeekQuery;
 
     const usersChangePct = usersLastWeek > 0
         ? ((totalUsers - usersLastWeek) / usersLastWeek * 100).toFixed(1)
@@ -164,22 +186,35 @@ async function handleOverview(req, res) {
 
 // notifications処理
 async function handleNotifications(req, res) {
+    const tenantId = req.query.tenant_id; // フルマネージド対応
     const limit = parseInt(req.query.limit) || 30;
     const offset = parseInt(req.query.offset) || 0;
 
-    const { data: notifications } = await supabaseAdmin
+    let notificationsQuery = supabaseAdmin
         .from('notifications')
         .select('id, title, body, url, send_at, created_at, target_user_count')
         .eq('sent', true)
         .is('deleted_at', null)
         .order('send_at', { ascending: false })
         .range(offset, offset + limit - 1);
+    
+    if (tenantId) {
+        notificationsQuery = notificationsQuery.eq('tenant_id', tenantId);
+    }
+
+    const { data: notifications } = await notificationsQuery;
 
     const notificationIds = notifications.map(n => n.id);
-    const { data: stats } = await supabaseAdmin
+    let statsQuery = supabaseAdmin
         .from('notification_stats')
         .select('*')
         .in('notification_id', notificationIds);
+    
+    if (tenantId) {
+        statsQuery = statsQuery.eq('tenant_id', tenantId);
+    }
+    
+    const { data: stats } = await statsQuery;
 
     const statsMap = {};
     if (stats) {
@@ -223,6 +258,7 @@ async function handleNotifications(req, res) {
 
 // trends処理
 async function handleTrends(req, res) {
+    const tenantId = req.query.tenant_id; // フルマネージド対応
     const period = req.query.period || '30d';
     const metric = req.query.metric || 'users';
 
@@ -246,11 +282,17 @@ async function handleTrends(req, res) {
     let dataPoints = [];
 
     if (metric === 'users') {
-        const { data: users } = await supabaseAdmin
+        let usersQuery = supabaseAdmin
             .from('users')
             .select('created_at')
             .gte('created_at', startDate.toISOString())
             .order('created_at', { ascending: true });
+        
+        if (tenantId) {
+            usersQuery = usersQuery.eq('tenant_id', tenantId);
+        }
+        
+        const { data: users } = await usersQuery;
 
         const dailyData = {};
         let cumulative = 0;
@@ -261,10 +303,16 @@ async function handleTrends(req, res) {
             dailyData[dateStr] = { new: 0, total: 0 };
         }
 
-        const { count: initialUsers } = await supabaseAdmin
+        let initialUsersQuery = supabaseAdmin
             .from('users')
             .select('*', { count: 'exact', head: true })
             .lt('created_at', startDate.toISOString());
+        
+        if (tenantId) {
+            initialUsersQuery = initialUsersQuery.eq('tenant_id', tenantId);
+        }
+        
+        const { count: initialUsers } = await initialUsersQuery;
 
         cumulative = initialUsers || 0;
 
@@ -286,12 +334,18 @@ async function handleTrends(req, res) {
             });
         });
     } else if (metric === 'notifications') {
-        const { data: notifications } = await supabaseAdmin
+        let notificationsQuery = supabaseAdmin
             .from('notifications')
             .select('send_at, target_user_count')
             .eq('sent', true)
             .gte('send_at', startDate.toISOString())
             .order('send_at', { ascending: true });
+        
+        if (tenantId) {
+            notificationsQuery = notificationsQuery.eq('tenant_id', tenantId);
+        }
+        
+        const { data: notifications } = await notificationsQuery;
 
         const dailyData = {};
         const dateRange = [];
@@ -319,12 +373,18 @@ async function handleTrends(req, res) {
             });
         });
     } else if (metric === 'open_rate' || metric === 'ctr') {
-        const { data: stats } = await supabaseAdmin
+        let statsQuery = supabaseAdmin
             .from('notification_stats')
             .select('notification_id, open_rate, ctr, updated_at')
             .gte('updated_at', startDate.toISOString())
             .gt('total_sent', 0)
             .order('updated_at', { ascending: true });
+        
+        if (tenantId) {
+            statsQuery = statsQuery.eq('tenant_id', tenantId);
+        }
+        
+        const { data: stats } = await statsQuery;
 
         const dailyData = {};
         const dateRange = [];

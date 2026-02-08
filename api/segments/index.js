@@ -29,16 +29,30 @@ export default async function handler(req, res) {
 }
 
 async function handleList(req, res) {
-    const { data: segments } = await supabaseAdmin
+    const tenantId = req.query.tenant_id; // フルマネージド対応
+    
+    let segmentsQuery = supabaseAdmin
         .from('user_segments')
         .select('*')
         .order('created_at', { ascending: false });
+    
+    if (tenantId) {
+        segmentsQuery = segmentsQuery.eq('tenant_id', tenantId);
+    }
+    
+    const { data: segments } = await segmentsQuery;
 
     const segmentsWithCount = await Promise.all(
         (segments || []).map(async (segment) => {
-            const { count } = await supabaseAdmin
+            let usersQuery = supabaseAdmin
                 .from('users')
                 .select('*', { count: 'exact', head: true });
+            
+            if (tenantId) {
+                usersQuery = usersQuery.eq('tenant_id', tenantId);
+            }
+            
+            const { count } = await usersQuery;
 
             return {
                 ...segment,
@@ -58,7 +72,7 @@ async function handleCreate(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { name, description, filter_conditions, is_dynamic = true } = req.body;
+    const { name, description, filter_conditions, is_dynamic = true, tenant_id } = req.body;
 
     if (!name || !filter_conditions) {
         return res.status(400).json({
@@ -73,7 +87,8 @@ async function handleCreate(req, res) {
             name,
             description: description || '',
             filter_conditions,
-            is_dynamic: is_dynamic !== undefined ? is_dynamic : true
+            is_dynamic: is_dynamic !== undefined ? is_dynamic : true,
+            tenant_id: tenant_id || null
         })
         .select();
 
@@ -99,16 +114,26 @@ async function handlePreview(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { filter_conditions, segment_id } = req.body;
+    const { filter_conditions, segment_id, tenant_id } = req.body;
 
     let query = supabaseAdmin.from('users').select('*', { count: 'exact', head: true });
+    
+    // テナントIDでフィルタリング
+    if (tenant_id) {
+        query = query.eq('tenant_id', tenant_id);
+    }
 
     if (segment_id) {
-        const { data: segment } = await supabaseAdmin
+        let segmentQuery = supabaseAdmin
             .from('user_segments')
             .select('filter_conditions')
-            .eq('id', segment_id)
-            .single();
+            .eq('id', segment_id);
+        
+        if (tenant_id) {
+            segmentQuery = segmentQuery.eq('tenant_id', tenant_id);
+        }
+        
+        const { data: segment } = await segmentQuery.single();
 
         if (!segment) {
             return res.status(404).json({ status: 'error', message: 'Segment not found' });
