@@ -370,26 +370,39 @@
         async function loadTenantInfo() {
             try {
                 const domain = getCurrentDomain();
+                console.log('Loading tenant info for domain:', domain);
+                
                 const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
                     headers: {
                         'Authorization': `Bearer ${ADMIN_PASSWORD}`
                     }
                 });
                 
+                console.log('Tenant API response status:', res.status);
+                
                 if (res.ok) {
                     const result = await res.json();
+                    console.log('Tenant API result:', result);
+                    
                     if (result.status === 'ok' && result.data.tenant) {
                         currentTenant = result.data.tenant;
                         tenantId = currentTenant.id;
+                        
+                        console.log('Tenant loaded:', currentTenant);
+                        console.log('Tenant ID:', tenantId);
+                        console.log('Tenant stats:', currentTenant.stats);
                         
                         document.getElementById('tenantName').textContent = currentTenant.name;
                         document.getElementById('tenantDomain').textContent = currentTenant.domain || domain;
                         document.getElementById('tenantPlan').textContent = (currentTenant.plan || 'basic').toUpperCase();
                     } else {
+                        console.warn('Tenant not found in response, using mock data');
                         // テナントが見つからない場合、モックデータを表示
                         showMockData();
                     }
                 } else {
+                    const errorText = await res.text();
+                    console.error('Tenant API error:', res.status, errorText);
                     // エラーの場合、モックデータを表示
                     showMockData();
                 }
@@ -466,6 +479,8 @@
                         document.getElementById('kpiPendingTasks').textContent = formatNumber(currentTenant.stats.pending_task_count || 0);
                     }
                 } else {
+                    const errorText = await res.text();
+                    console.error('KPI API error:', res.status, errorText);
                     showMockKPIs();
                 }
             } catch (err) {
