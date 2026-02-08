@@ -8,12 +8,12 @@
 </head>
 <body>
     <!-- ログイン画面 -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-box">
-            <h1>Narukami 管理画面</h1>
-            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
-            <button id="loginButton" class="btn-primary">ログイン</button>
-            <div id="loginError" class="error-message" style="display: none;"></div>
+    <div id="loginScreen" class="login-screen" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; z-index: 1000;">
+        <div class="login-box" style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 300px;">
+            <h1 style="margin: 0 0 20px 0; text-align: center; color: #333;">Narukami 管理画面</h1>
+            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            <button id="loginButton" class="btn-primary" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">ログイン</button>
+            <div id="loginError" class="error-message" style="display: none; color: red; margin-top: 10px; text-align: center;"></div>
         </div>
     </div>
 
@@ -212,13 +212,27 @@
         }
 
         // 作成画面用の初期化
+        // 即座にログイン画面を表示（JavaScriptが読み込まれる前でも表示される）
+        (function() {
+            const loginScreen = document.getElementById('loginScreen');
+            const createScreen = document.getElementById('createScreen');
+            if (loginScreen) {
+                loginScreen.style.display = 'flex';
+            }
+            if (createScreen) {
+                createScreen.style.display = 'none';
+            }
+        })();
+
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                // まずログイン画面を表示（デフォルト）
+                // ログイン画面と作成画面の状態を確認
                 const loginScreen = document.getElementById('loginScreen');
                 const createScreen = document.getElementById('createScreen');
-                if (loginScreen) loginScreen.style.display = 'flex';
-                if (createScreen) createScreen.style.display = 'none';
+                if (!loginScreen || !createScreen) {
+                    console.error('Required elements not found');
+                    return;
+                }
                 
                 // admin.jsが読み込まれるのを待つ
                 let retryCount = 0;
