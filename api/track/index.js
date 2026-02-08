@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '../../lib/supabase.js';
 
-// 通知クリックイベントを記録するAPI（認証不要・Service Workerから呼び出し）
+// トラッキングAPI統合版（event_typeで分岐）
 export default async function handler(req, res) {
     // CORS設定
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,18 +15,18 @@ export default async function handler(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { notification_id, notification_type = 'scheduled', user_id, url, metadata = {} } = req.body;
+    const { event_type, notification_id, notification_type = 'scheduled', user_id, url, metadata = {} } = req.body;
 
-    if (!notification_id) {
-        return res.status(400).json({ status: 'error', message: 'notification_id is required' });
+    if (!notification_id || !event_type) {
+        return res.status(400).json({ status: 'error', message: 'notification_id and event_type are required' });
+    }
+
+    if (event_type !== 'open' && event_type !== 'click') {
+        return res.status(400).json({ status: 'error', message: 'event_type must be "open" or "click"' });
     }
 
     try {
-        // notification_events に記録
-        const eventMetadata = {
-            ...metadata,
-            url: url || null
-        };
+        const eventMetadata = event_type === 'click' ? { ...metadata, url: url || null } : metadata;
 
         const { error: eventError } = await supabaseAdmin
             .from('notification_events')
@@ -34,33 +34,29 @@ export default async function handler(req, res) {
                 notification_id,
                 notification_type,
                 user_id: user_id || null,
-                event_type: 'click',
+                event_type,
                 metadata: eventMetadata
             });
 
         if (eventError) throw eventError;
 
         // notification_stats を更新（非同期で実行、エラーは無視）
-        updateNotificationStats(notification_id, 'click').catch(err => {
+        updateNotificationStats(notification_id, event_type).catch(err => {
             console.error('Stats update error (non-blocking):', err);
         });
 
         return res.status(200).json({ status: 'ok' });
     } catch (err) {
-        console.error('Track click error:', err);
+        console.error('Track error:', err);
         return res.status(500).json({ status: 'error', message: 'Internal server error' });
     }
 }
 
-// notification_stats を更新するヘルパー関数
 async function updateNotificationStats(notificationId, eventType) {
-    // 該当通知のイベントを集計
-    const { data: events, error } = await supabaseAdmin
+    const { data: events } = await supabaseAdmin
         .from('notification_events')
         .select('event_type')
         .eq('notification_id', notificationId);
-
-    if (error) throw error;
 
     const stats = {
         total_sent: events.filter(e => e.event_type === 'sent').length,
@@ -70,7 +66,6 @@ async function updateNotificationStats(notificationId, eventType) {
         total_dismissed: events.filter(e => e.event_type === 'dismiss').length,
     };
 
-    // 開封率・CTRを計算
     const openRate = stats.total_sent > 0 
         ? (stats.total_opened / stats.total_sent * 100).toFixed(2)
         : 0;
@@ -78,7 +73,6 @@ async function updateNotificationStats(notificationId, eventType) {
         ? (stats.total_clicked / stats.total_sent * 100).toFixed(2)
         : 0;
 
-    // notification_type を取得
     const { data: notification } = await supabaseAdmin
         .from('notifications')
         .select('id')
@@ -87,8 +81,7 @@ async function updateNotificationStats(notificationId, eventType) {
 
     const notificationType = notification ? 'scheduled' : 'step';
 
-    // upsert
-    const { error: upsertError } = await supabaseAdmin
+    await supabaseAdmin
         .from('notification_stats')
         .upsert({
             notification_id: notificationId,
@@ -100,6 +93,4 @@ async function updateNotificationStats(notificationId, eventType) {
         }, {
             onConflict: 'notification_id'
         });
-
-    if (upsertError) throw upsertError;
 }

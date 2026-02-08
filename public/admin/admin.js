@@ -108,7 +108,7 @@ async function loadDashboard() {
 async function loadKPIs() {
     try {
         const password = localStorage.getItem('adminPassword');
-        const response = await fetch('/api/analytics/overview', {
+        const response = await fetch('/api/analytics?type=overview', {
             headers: {
                 'Authorization': `Bearer ${password}`
             }
@@ -152,7 +152,7 @@ function updateTrend(elementId, changePct) {
 async function loadTrends(metric, period) {
     try {
         const password = localStorage.getItem('adminPassword');
-        const response = await fetch(`/api/analytics/trends?metric=${metric}&period=${period}`, {
+        const response = await fetch(`/api/analytics?type=trends&metric=${metric}&period=${period}`, {
             headers: {
                 'Authorization': `Bearer ${password}`
             }
@@ -230,7 +230,7 @@ function updateUsersChart(dataPoints, period) {
 async function loadNotificationsChart() {
     try {
         const password = localStorage.getItem('adminPassword');
-        const response = await fetch('/api/analytics/notifications?limit=10', {
+        const response = await fetch('/api/analytics?type=notifications&limit=10', {
             headers: {
                 'Authorization': `Bearer ${password}`
             }
@@ -324,7 +324,7 @@ async function loadNotifications() {
             fetch('/api/notifications/list', {
                 headers: { 'Authorization': `Bearer ${password}` }
             }),
-            fetch('/api/analytics/notifications?limit=100', {
+            fetch('/api/analytics?type=notifications&limit=100', {
                 headers: { 'Authorization': `Bearer ${password}` }
             })
         ]);

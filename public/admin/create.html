@@ -88,7 +88,7 @@
         async function loadSegments() {
             try {
                 const password = localStorage.getItem('adminPassword');
-                const response = await fetch('/api/segments/list', {
+                const response = await fetch('/api/segments?action=list', {
                     headers: {
                         'Authorization': `Bearer ${password}`
                     }
@@ -137,7 +137,7 @@
 
             try {
                 const password = localStorage.getItem('adminPassword');
-                const response = await fetch('/api/segments/preview', {
+                const response = await fetch('/api/segments?action=preview', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

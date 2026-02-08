@@ -75,7 +75,7 @@
             const listDiv = document.getElementById('sequencesList');
             
             try {
-                const response = await fetch('/api/step-sequences/list', {
+                const response = await fetch('/api/step-sequences?action=list', {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
                     }
@@ -171,7 +171,7 @@
 
         async function toggleSequence(id, isActive) {
             try {
-                const response = await fetch(`/api/step-sequences/toggle`, {
+                const response = await fetch(`/api/step-sequences?action=toggle`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -193,7 +193,7 @@
 
         async function deleteSequence(id) {
             try {
-                const response = await fetch(`/api/step-sequences/delete`, {
+                const response = await fetch(`/api/step-sequences?action=delete`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -217,7 +217,7 @@
             const statusDiv = document.getElementById('stepStatus');
             
             try {
-                const response = await fetch('/api/step-sequences/status', {
+                const response = await fetch('/api/step-sequences?action=status', {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
                     }

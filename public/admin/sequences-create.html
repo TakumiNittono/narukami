@@ -251,7 +251,7 @@
             }
 
             try {
-                const response = await fetch('/api/step-sequences/create', {
+                const response = await fetch('/api/step-sequences?action=create', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

@@ -155,13 +155,15 @@ self.addEventListener('notificationclick', (event) => {
 // トラッキングイベントを送信するヘルパー関数
 async function trackEvent(eventType, data) {
     try {
-        const endpoint = eventType === 'open' ? '/api/track/open' : '/api/track/click';
-        const response = await fetch(endpoint, {
+        const response = await fetch('/api/track', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify({
+                ...data,
+                event_type: eventType
+            })
         });
         
         if (!response.ok) {
