@@ -200,6 +200,9 @@
 </head>
 <body>
     <div class="managed-container">
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 20px; color: #856404;">
+            <strong>📌 モックモード</strong> - この画面はUI表示のみです。API数制限のため、モックデータで動作しています。
+        </div>
         <div class="header-section">
             <h1>フルマネージド管理画面</h1>
             <button class="btn btn-primary" onclick="showCreateTenantModal()">新規顧客追加</button>
@@ -383,10 +386,11 @@
     </div>
 
     <script>
-        const ADMIN_PASSWORD = localStorage.getItem('admin_password') || prompt('管理者パスワードを入力してください:');
-        if (ADMIN_PASSWORD) {
-            localStorage.setItem('admin_password', ADMIN_PASSWORD);
-        }
+        // モックモード（API数制限のため、UI表示のみ）
+        const MOCK_MODE = true;
+        
+        // パスワード入力は不要（モックモード）
+        const ADMIN_PASSWORD = 'mock';
 
         let tenants = [];
         let tasks = [];
@@ -401,55 +405,126 @@
             ]);
         }
 
+        // モックデータ（UI表示用）
         async function loadTenants() {
-            try {
-                const res = await fetch('/api/tenants?action=list', {
-                    headers: {
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+            // API呼び出しをモックデータに置き換え（API数制限のため）
+            setTimeout(() => {
+                tenants = [
+                    {
+                        id: 1,
+                        name: 'サンプル企業A',
+                        plan: 'pro',
+                        monthly_fee: 250000,
+                        monthly_sent_count: 45000,
+                        monthly_limit: 100000,
+                        status: 'active',
+                        stats: {
+                            user_count: 1250,
+                            notification_count: 45,
+                            pending_task_count: 3
+                        }
+                    },
+                    {
+                        id: 2,
+                        name: 'サンプル企業B',
+                        plan: 'basic',
+                        monthly_fee: 100000,
+                        monthly_sent_count: 8500,
+                        monthly_limit: 10000,
+                        status: 'active',
+                        stats: {
+                            user_count: 320,
+                            notification_count: 12,
+                            pending_task_count: 1
+                        }
+                    },
+                    {
+                        id: 3,
+                        name: 'サンプル企業C',
+                        plan: 'enterprise',
+                        monthly_fee: 500000,
+                        monthly_sent_count: 250000,
+                        monthly_limit: 999999999,
+                        status: 'active',
+                        stats: {
+                            user_count: 5600,
+                            notification_count: 128,
+                            pending_task_count: 5
+                        }
                     }
-                });
-                const result = await res.json();
-                if (result.status === 'ok') {
-                    tenants = result.data || [];
-                    renderTenants();
-                }
-            } catch (err) {
-                console.error('Failed to load tenants:', err);
-            }
+                ];
+                renderTenants();
+            }, 500);
         }
 
         async function loadTasks() {
-            try {
-                const res = await fetch('/api/tasks?action=list', {
-                    headers: {
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+            // API呼び出しをモックデータに置き換え（API数制限のため）
+            setTimeout(() => {
+                tasks = [
+                    {
+                        id: 1,
+                        tenant_id: 1,
+                        tenant_name: 'サンプル企業A',
+                        task_type: 'notification_create',
+                        title: '新商品発売通知を作成',
+                        description: '来週発売の新商品の通知を作成する必要があります',
+                        status: 'pending',
+                        priority: 'high',
+                        due_date: '2026-02-15'
+                    },
+                    {
+                        id: 2,
+                        tenant_id: 2,
+                        tenant_name: 'サンプル企業B',
+                        task_type: 'step_sequence_create',
+                        title: 'ウェルカムシーケンスの設計',
+                        description: '新規ユーザー向けのステップ配信を設計',
+                        status: 'in_progress',
+                        priority: 'normal',
+                        due_date: '2026-02-20'
+                    },
+                    {
+                        id: 3,
+                        tenant_id: 1,
+                        tenant_name: 'サンプル企業A',
+                        task_type: 'report_create',
+                        title: '1月の月次レポート作成',
+                        description: '1月のパフォーマンスレポートを作成',
+                        status: 'completed',
+                        priority: 'normal',
+                        due_date: '2026-02-05',
+                        completed_at: '2026-02-05T10:00:00Z'
                     }
-                });
-                const result = await res.json();
-                if (result.status === 'ok') {
-                    tasks = result.data || [];
-                    renderTasks();
-                }
-            } catch (err) {
-                console.error('Failed to load tasks:', err);
-            }
+                ];
+                renderTasks();
+            }, 500);
         }
 
         async function loadReports() {
-            try {
-                const res = await fetch('/api/reports?action=list', {
-                    headers: {
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+            // API呼び出しをモックデータに置き換え（API数制限のため）
+            setTimeout(() => {
+                reports = [
+                    {
+                        id: 1,
+                        tenant_id: 1,
+                        report_type: 'monthly',
+                        period_start: '2026-01-01',
+                        period_end: '2026-01-31',
+                        title: '2026年1月 月次レポート',
+                        summary: '1月の通知配信パフォーマンスをまとめました。'
+                    },
+                    {
+                        id: 2,
+                        tenant_id: 2,
+                        report_type: 'monthly',
+                        period_start: '2026-01-01',
+                        period_end: '2026-01-31',
+                        title: '2026年1月 月次レポート',
+                        summary: '1月の通知配信パフォーマンスをまとめました。'
                     }
-                });
-                const result = await res.json();
-                if (result.status === 'ok') {
-                    reports = result.data || [];
-                    renderReports();
-                }
-            } catch (err) {
-                console.error('Failed to load reports:', err);
-            }
+                ];
+                renderReports();
+            }, 500);
         }
 
         async function loadStats() {
@@ -566,32 +641,27 @@
             document.getElementById(modalId).classList.remove('active');
         }
 
+        // モックデータで動作（API数制限のため）
         document.getElementById('createTenantForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
 
-            try {
-                const res = await fetch('/api/tenants?action=create', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                const result = await res.json();
-                if (result.status === 'ok') {
-                    alert('顧客を追加しました');
-                    closeModal('createTenantModal');
-                    await loadData();
-                } else {
-                    alert('エラー: ' + result.message);
-                }
-            } catch (err) {
-                alert('エラーが発生しました');
-                console.error(err);
-            }
+            // モック: 新しい顧客を追加
+            const newTenant = {
+                id: tenants.length + 1,
+                name: data.name,
+                plan: data.plan,
+                monthly_fee: data.plan === 'basic' ? 100000 : data.plan === 'pro' ? 250000 : 500000,
+                monthly_sent_count: 0,
+                monthly_limit: parseInt(data.monthly_limit) || 10000,
+                status: 'active',
+                stats: { user_count: 0, notification_count: 0, pending_task_count: 0 }
+            };
+            tenants.push(newTenant);
+            alert('顧客を追加しました（モックデータ）');
+            closeModal('createTenantModal');
+            await loadData();
         });
 
         document.getElementById('createTaskForm').addEventListener('submit', async (e) => {
@@ -599,27 +669,23 @@
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
 
-            try {
-                const res = await fetch('/api/tasks?action=create', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                const result = await res.json();
-                if (result.status === 'ok') {
-                    alert('タスクを作成しました');
-                    closeModal('createTaskModal');
-                    await loadData();
-                } else {
-                    alert('エラー: ' + result.message);
-                }
-            } catch (err) {
-                alert('エラーが発生しました');
-                console.error(err);
-            }
+            // モック: 新しいタスクを追加
+            const tenant = tenants.find(t => t.id == data.tenant_id);
+            const newTask = {
+                id: tasks.length + 1,
+                tenant_id: parseInt(data.tenant_id),
+                tenant_name: tenant ? tenant.name : '不明',
+                task_type: data.task_type,
+                title: data.title,
+                description: data.description || '',
+                status: 'pending',
+                priority: data.priority || 'normal',
+                due_date: data.due_date || null
+            };
+            tasks.push(newTask);
+            alert('タスクを作成しました（モックデータ）');
+            closeModal('createTaskModal');
+            await loadData();
         });
 
         document.getElementById('createReportForm').addEventListener('submit', async (e) => {
@@ -627,59 +693,46 @@
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
 
-            try {
-                const res = await fetch('/api/reports?action=create', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
-                    },
-                    body: JSON.stringify(data)
-                });
-                const result = await res.json();
-                if (result.status === 'ok') {
-                    alert('レポートを作成しました');
-                    closeModal('createReportModal');
-                    await loadData();
-                } else {
-                    alert('エラー: ' + result.message);
-                }
-            } catch (err) {
-                alert('エラーが発生しました');
-                console.error(err);
-            }
+            // モック: 新しいレポートを追加
+            const newReport = {
+                id: reports.length + 1,
+                tenant_id: parseInt(data.tenant_id),
+                report_type: data.report_type,
+                period_start: data.period_start,
+                period_end: data.period_end,
+                title: data.title,
+                summary: data.summary || ''
+            };
+            reports.push(newReport);
+            alert('レポートを作成しました（モックデータ）');
+            closeModal('createReportModal');
+            await loadData();
         });
 
         async function completeTask(taskId) {
             if (!confirm('このタスクを完了にしますか？')) return;
 
-            try {
-                const res = await fetch('/api/tasks?action=complete', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
-                    },
-                    body: JSON.stringify({ id: taskId })
-                });
-                const result = await res.json();
-                if (result.status === 'ok') {
-                    await loadData();
-                } else {
-                    alert('エラー: ' + result.message);
-                }
-            } catch (err) {
-                alert('エラーが発生しました');
-                console.error(err);
+            // モック: タスクを完了にする
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.status = 'completed';
+                task.completed_at = new Date().toISOString();
+                await loadData();
             }
         }
 
         function viewTenant(tenantId) {
-            window.location.href = `/admin/managed-tenant.html?id=${tenantId}`;
+            const tenant = tenants.find(t => t.id === tenantId);
+            if (tenant) {
+                alert(`顧客詳細: ${tenant.name}\nプラン: ${tenant.plan}\n月額: ¥${tenant.monthly_fee.toLocaleString()}\nユーザー数: ${tenant.stats?.user_count || 0}\n通知数: ${tenant.stats?.notification_count || 0}\n未対応タスク: ${tenant.stats?.pending_task_count || 0}`);
+            }
         }
 
         function viewReport(reportId) {
-            window.location.href = `/admin/managed-report.html?id=${reportId}`;
+            const report = reports.find(r => r.id === reportId);
+            if (report) {
+                alert(`レポート詳細: ${report.title}\n期間: ${report.period_start} ～ ${report.period_end}\n${report.summary || ''}`);
+            }
         }
 
         // 初期読み込み
