@@ -55,27 +55,51 @@
 
     <script src="/admin/admin.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            checkAuth().then(async () => {
-                document.getElementById('mainScreen').style.display = 'block';
-                
-                // 手動実行ボタンのイベントリスナーを設定
-                const executeBtn = document.getElementById('executeNowBtn');
-                if (executeBtn) {
-                    executeBtn.addEventListener('click', executeStepNotifications);
-                } else {
-                    console.error('Execute button not found!');
+        // テナントIDを取得（ドメインから）
+        let currentTenantId = null;
+        async function loadTenantId() {
+            try {
+                const domain = window.location.hostname;
+                const password = localStorage.getItem('adminPassword');
+                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
+                    headers: { 'Authorization': `Bearer ${password}` }
+                });
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result.status === 'ok' && result.data.tenant) {
+                        currentTenantId = result.data.tenant.id;
+                        console.log('Tenant ID loaded:', currentTenantId);
+                    }
                 }
-                
-                await Promise.all([loadSequences(), loadStepStatus()]);
-            });
+            } catch (err) {
+                console.error('Failed to load tenant ID:', err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await loadTenantId();
+            document.getElementById('mainScreen').style.display = 'block';
+            
+            // 手動実行ボタンのイベントリスナーを設定
+            const executeBtn = document.getElementById('executeNowBtn');
+            if (executeBtn) {
+                executeBtn.addEventListener('click', executeStepNotifications);
+            } else {
+                console.error('Execute button not found!');
+            }
+            
+            await Promise.all([loadSequences(), loadStepStatus()]);
         });
 
         async function loadSequences() {
             const listDiv = document.getElementById('sequencesList');
             
             try {
-                const response = await fetch('/api/step-sequences?action=list', {
+                const url = currentTenantId 
+                    ? `/api/step-sequences?action=list&tenant_id=${currentTenantId}`
+                    : '/api/step-sequences?action=list';
+                const response = await fetch(url, {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
                     }
@@ -171,13 +195,17 @@
 
         async function toggleSequence(id, isActive) {
             try {
+                const payload = { id, is_active: isActive };
+                if (currentTenantId) {
+                    payload.tenant_id = currentTenantId;
+                }
                 const response = await fetch(`/api/step-sequences?action=toggle`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
                     },
-                    body: JSON.stringify({ id, is_active: isActive })
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();
@@ -193,13 +221,17 @@
 
         async function deleteSequence(id) {
             try {
+                const payload = { id };
+                if (currentTenantId) {
+                    payload.tenant_id = currentTenantId;
+                }
                 const response = await fetch(`/api/step-sequences?action=delete`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
                     },
-                    body: JSON.stringify({ id })
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();
@@ -217,7 +249,10 @@
             const statusDiv = document.getElementById('stepStatus');
             
             try {
-                const response = await fetch('/api/step-sequences?action=status', {
+                const url = currentTenantId 
+                    ? `/api/step-sequences?action=status&tenant_id=${currentTenantId}`
+                    : '/api/step-sequences?action=status';
+                const response = await fetch(url, {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
                     }
@@ -259,12 +294,17 @@
             btn.textContent = '実行中...';
             
             try {
+                const payload = {};
+                if (currentTenantId) {
+                    payload.tenant_id = currentTenantId;
+                }
                 const response = await fetch('/api/cron/send-step-notifications', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                    }
+                    },
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();

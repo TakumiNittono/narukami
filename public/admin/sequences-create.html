@@ -67,12 +67,33 @@
     <script src="/admin/admin.js"></script>
     <script>
         let stepCounter = 0;
+        let currentTenantId = null;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            checkAuth().then(() => {
-                document.getElementById('createScreen').style.display = 'block';
-                initForm();
-            });
+        // テナントIDを取得（ドメインから）
+        async function loadTenantId() {
+            try {
+                const domain = window.location.hostname;
+                const password = localStorage.getItem('adminPassword');
+                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
+                    headers: { 'Authorization': `Bearer ${password}` }
+                });
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result.status === 'ok' && result.data.tenant) {
+                        currentTenantId = result.data.tenant.id;
+                        console.log('Tenant ID loaded:', currentTenantId);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load tenant ID:', err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await loadTenantId();
+            document.getElementById('createScreen').style.display = 'block';
+            initForm();
         });
 
         function initForm() {
@@ -251,18 +272,22 @@
             }
 
             try {
+                const payload = {
+                    name,
+                    description,
+                    is_active,
+                    steps
+                };
+                if (currentTenantId) {
+                    payload.tenant_id = currentTenantId;
+                }
                 const response = await fetch('/api/step-sequences?action=create', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
                     },
-                    body: JSON.stringify({
-                        name,
-                        description,
-                        is_active,
-                        steps
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();

@@ -137,13 +137,17 @@
 
             try {
                 const password = localStorage.getItem('adminPassword');
+                const payload = { segment_id: parseInt(segmentId) };
+                if (currentTenantId) {
+                    payload.tenant_id = currentTenantId;
+                }
                 const response = await fetch('/api/segments?action=preview', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${password}`
                     },
-                    body: JSON.stringify({ segment_id: parseInt(segmentId) })
+                    body: JSON.stringify(payload)
                 });
 
                 if (response.ok) {
@@ -156,56 +160,91 @@
             }
         }
 
+        // テナントIDを取得（ドメインから）
+        let currentTenantId = null;
+        async function loadTenantId() {
+            try {
+                const domain = window.location.hostname;
+                const password = localStorage.getItem('adminPassword');
+                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
+                    headers: { 'Authorization': `Bearer ${password}` }
+                });
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result.status === 'ok' && result.data.tenant) {
+                        currentTenantId = result.data.tenant.id;
+                        console.log('Tenant ID loaded:', currentTenantId);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load tenant ID:', err);
+            }
+        }
+
         // 作成画面用の初期化
-        document.addEventListener('DOMContentLoaded', () => {
-            checkAuth().then(() => {
-                document.getElementById('createScreen').style.display = 'block';
-                loadSegments();
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await loadTenantId();
+            document.getElementById('createScreen').style.display = 'block';
+            loadSegments();
+            
+            // フォーム送信処理
+            document.getElementById('createForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
                 
-                // フォーム送信処理
-                document.getElementById('createForm').addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    
-                    const title = document.getElementById('title').value;
-                    const body = document.getElementById('body').value;
-                    const url = document.getElementById('url').value;
-                    const send_at = document.getElementById('send_at').value;
-                    const targetType = document.querySelector('input[name="target_type"]:checked').value;
-                    const segmentId = document.getElementById('segmentSelect').value;
+                const title = document.getElementById('title').value;
+                const body = document.getElementById('body').value;
+                const url = document.getElementById('url').value;
+                const send_at = document.getElementById('send_at').value;
+                const targetType = document.querySelector('input[name="target_type"]:checked').value;
+                const segmentId = document.getElementById('segmentSelect').value;
 
-                    if (!title || !body || !send_at) {
-                        showError('タイトル、本文、送信日時は必須です');
-                        return;
-                    }
+                if (!title || !body || !send_at) {
+                    showError('タイトル、本文、送信日時は必須です');
+                    return;
+                }
 
-                    if (targetType === 'segment' && !segmentId) {
-                        showError('セグメントを選択してください');
-                        return;
-                    }
+                if (targetType === 'segment' && !segmentId) {
+                    showError('セグメントを選択してください');
+                    return;
+                }
 
-                    const payload = {
-                        title,
-                        body,
-                        url,
-                        send_at,
-                        target_type: targetType
-                    };
+                const payload = {
+                    title,
+                    body,
+                    url,
+                    send_at,
+                    target_type: targetType
+                };
 
-                    if (targetType === 'segment') {
-                        payload.target_segment_id = parseInt(segmentId);
-                    }
+                if (targetType === 'segment') {
+                    payload.target_segment_id = parseInt(segmentId);
+                }
+                
+                // tenant_idを追加
+                if (currentTenantId) {
+                    payload.tenant_id = currentTenantId;
+                }
 
-                    try {
-                        const response = await fetch('/api/notifications/create', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                            },
-                            body: JSON.stringify(payload)
-                        });
+                try {
+                    const response = await fetch('/api/notifications/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                        },
+                        body: JSON.stringify(payload)
+                    });
 
-                        const result = await response.json();
+                        let result;
+                        try {
+                            result = await response.json();
+                        } catch (jsonError) {
+                            const text = await response.text();
+                            console.error('Invalid JSON response:', text);
+                            showError('サーバーエラーが発生しました。レスポンスが不正です: ' + text.substring(0, 100));
+                            return;
+                        }
 
                         if (result.status === 'ok') {
                             showSuccess('通知を作成しました');
@@ -216,6 +255,7 @@
                             showError(result.message || '作成に失敗しました');
                         }
                     } catch (error) {
+                        console.error('Request error:', error);
                         showError('エラーが発生しました: ' + error.message);
                     }
                 });

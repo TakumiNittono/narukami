@@ -163,20 +163,36 @@ async function loadKPIs() {
         });
 
         if (response.ok) {
-            const result = await response.json();
-            const data = result.data;
+            let result;
+            try {
+                result = await response.json();
+            } catch (jsonError) {
+                console.error('KPI JSON parse error:', jsonError);
+                return;
+            }
+            
+            const data = result.data || {};
 
-            // KPIカード更新
-            document.getElementById('kpiTotalUsers').textContent = formatNumber(data.total_users);
-            document.getElementById('kpiNewUsers').textContent = formatNumber(data.new_users_this_week);
-            document.getElementById('kpiOpenRate').textContent = formatPercent(data.avg_open_rate);
-            document.getElementById('kpiCtr').textContent = formatPercent(data.avg_ctr);
+            // KPIカード更新（要素が存在する場合のみ）
+            const kpiTotalUsersEl = document.getElementById('kpiTotalUsers');
+            const kpiNewUsersEl = document.getElementById('kpiNewUsers');
+            const kpiOpenRateEl = document.getElementById('kpiOpenRate');
+            const kpiCtrEl = document.getElementById('kpiCtr');
+
+            if (kpiTotalUsersEl) kpiTotalUsersEl.textContent = formatNumber(data.total_users || 0);
+            if (kpiNewUsersEl) kpiNewUsersEl.textContent = formatNumber(data.new_users_this_week || 0);
+            if (kpiOpenRateEl) kpiOpenRateEl.textContent = formatPercent(data.avg_open_rate || 0);
+            if (kpiCtrEl) kpiCtrEl.textContent = formatPercent(data.avg_ctr || 0);
 
             // トレンド表示
-            updateTrend('kpiUsersTrend', data.trends.users_change_pct);
-            updateTrend('kpiNewUsersTrend', data.trends.new_users_change_pct);
-            updateTrend('kpiOpenRateTrend', data.trends.open_rate_change_pct);
-            updateTrend('kpiCtrTrend', data.trends.ctr_change_pct);
+            if (data.trends) {
+                updateTrend('kpiUsersTrend', data.trends.users_change_pct);
+                updateTrend('kpiNewUsersTrend', data.trends.new_users_change_pct);
+                updateTrend('kpiOpenRateTrend', data.trends.open_rate_change_pct);
+                updateTrend('kpiCtrTrend', data.trends.ctr_change_pct);
+            }
+        } else {
+            console.error('KPI API error:', response.status, response.statusText);
         }
     } catch (error) {
         console.error('KPI load error:', error);
