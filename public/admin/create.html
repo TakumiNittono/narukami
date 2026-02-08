@@ -214,26 +214,41 @@
         // 作成画面用の初期化
         document.addEventListener('DOMContentLoaded', async () => {
             try {
+                // まずログイン画面を表示（デフォルト）
+                const loginScreen = document.getElementById('loginScreen');
+                const createScreen = document.getElementById('createScreen');
+                if (loginScreen) loginScreen.style.display = 'flex';
+                if (createScreen) createScreen.style.display = 'none';
+                
                 // admin.jsが読み込まれるのを待つ
                 let retryCount = 0;
-                const maxRetries = 10;
+                const maxRetries = 20;
                 const checkAdminJs = setInterval(async () => {
                     if (typeof checkAuth === 'function') {
                         clearInterval(checkAdminJs);
+                        
+                        // 画面表示関数をオーバーライド
                         overrideScreenFunctions();
                         
                         // 認証チェック（既にログインしていれば認証される）
-                        const authenticated = await checkAuth();
-                        
-                        if (authenticated) {
-                            await loadTenantId();
-                            await loadSegments();
+                        try {
+                            const authenticated = await checkAuth();
+                            
+                            if (authenticated) {
+                                await loadTenantId();
+                                await loadSegments();
+                            }
+                        } catch (authError) {
+                            console.error('Auth check error:', authError);
                         }
                         
                         // ログインボタンのイベントリスナー（admin.jsのlogin関数を使用）
                         const loginButton = document.getElementById('loginButton');
                         if (loginButton) {
-                            loginButton.addEventListener('click', async () => {
+                            // 既存のイベントリスナーを削除してから追加
+                            loginButton.replaceWith(loginButton.cloneNode(true));
+                            const newLoginButton = document.getElementById('loginButton');
+                            newLoginButton.addEventListener('click', async () => {
                                 if (typeof login === 'function') {
                                     await login();
                                     // ログイン成功後、create.htmlの処理を実行
@@ -263,11 +278,17 @@
                         if (retryCount >= maxRetries) {
                             clearInterval(checkAdminJs);
                             console.error('admin.js not loaded after retries');
+                            // admin.jsが読み込まれなくても、ログイン画面は表示されている
                         }
                     }
-                }, 50);
+                }, 100);
             } catch (error) {
                 console.error('Initialization error:', error);
+                // エラーが発生してもログイン画面は表示
+                const loginScreen = document.getElementById('loginScreen');
+                const createScreen = document.getElementById('createScreen');
+                if (loginScreen) loginScreen.style.display = 'flex';
+                if (createScreen) createScreen.style.display = 'none';
             }
             
             // フォーム送信処理
@@ -341,7 +362,8 @@
                         showError('エラーが発生しました: ' + error.message);
                     }
                 });
-            });
+            }
+        });
 
             function showError(message) {
                 const errorDiv = document.getElementById('formError');
