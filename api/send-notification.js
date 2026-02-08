@@ -63,7 +63,8 @@ export default async function handler(req, res) {
                     badge: '/icons/icon-192.png',
                     url: url || '/',
                     notification_id: null, // テスト送信はIDなし
-                    notification_type: 'immediate'
+                    notification_type: 'immediate',
+                    user_id: user.id
                 });
 
                 await webpush.sendNotification(subscription, payload);

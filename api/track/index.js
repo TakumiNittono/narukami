@@ -73,24 +73,33 @@ async function updateNotificationStats(notificationId, eventType) {
         ? (stats.total_clicked / stats.total_sent * 100).toFixed(2)
         : 0;
 
+    // 通知情報を取得（tenant_idを含む）
     const { data: notification } = await supabaseAdmin
         .from('notifications')
-        .select('id')
+        .select('id, tenant_id')
         .eq('id', notificationId)
         .single();
 
     const notificationType = notification ? 'scheduled' : 'step';
+    const tenantId = notification ? notification.tenant_id : null;
+
+    const upsertData = {
+        notification_id: notificationId,
+        notification_type: notificationType,
+        ...stats,
+        open_rate: parseFloat(openRate),
+        ctr: parseFloat(ctr),
+        updated_at: new Date().toISOString()
+    };
+
+    // tenant_idが存在する場合は設定
+    if (tenantId) {
+        upsertData.tenant_id = tenantId;
+    }
 
     await supabaseAdmin
         .from('notification_stats')
-        .upsert({
-            notification_id: notificationId,
-            notification_type: notificationType,
-            ...stats,
-            open_rate: parseFloat(openRate),
-            ctr: parseFloat(ctr),
-            updated_at: new Date().toISOString()
-        }, {
+        .upsert(upsertData, {
             onConflict: 'notification_id'
         });
 }

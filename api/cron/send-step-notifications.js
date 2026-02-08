@@ -80,7 +80,10 @@ export default async function handler(req, res) {
                     body: stepNotification.body,
                     url: stepNotification.url || '/',
                     icon: '/icons/icon-192.png',
-                    badge: '/icons/icon-192.png'
+                    badge: '/icons/icon-192.png',
+                    notification_id: stepNotification.id,
+                    notification_type: 'step',
+                    user_id: progress.user_id
                 });
 
                 await webpush.sendNotification(subscription, payload);

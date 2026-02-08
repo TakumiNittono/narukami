@@ -116,7 +116,8 @@ export default async function handler(req, res) {
                         badge: '/icons/icon-192.png',
                         url: notification.url || '/',
                         notification_id: notification.id,
-                        notification_type: 'scheduled'
+                        notification_type: 'scheduled',
+                        user_id: user.id
                     });
 
                     await webpush.sendNotification(subscription, payload);
@@ -153,14 +154,21 @@ export default async function handler(req, res) {
                 .eq('id', notification.id);
             
             // notification_stats の初期化（送信数だけ設定）
+            const statsData = {
+                notification_id: notification.id,
+                notification_type: 'scheduled',
+                total_sent: successCount,
+                updated_at: new Date().toISOString()
+            };
+            
+            // tenant_idが存在する場合は設定
+            if (notification.tenant_id) {
+                statsData.tenant_id = notification.tenant_id;
+            }
+            
             await supabaseAdmin
                 .from('notification_stats')
-                .upsert({
-                    notification_id: notification.id,
-                    notification_type: 'scheduled',
-                    total_sent: successCount,
-                    updated_at: new Date().toISOString()
-                }, {
+                .upsert(statsData, {
                     onConflict: 'notification_id'
                 });
 
