@@ -14,7 +14,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { subscription } = req.body;
+    const { subscription, domain } = req.body;
 
     if (!subscription) {
         return res.status(400).json({ status: 'error', message: 'Subscription is required' });

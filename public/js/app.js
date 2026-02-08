@@ -126,20 +126,16 @@ async function requestNotificationPermission() {
 
             console.log('Push Subscription Data:', subscriptionData);
 
-            // サーバーにサブスクリプション送信
+            // サーバーにサブスクリプション送信（ドメイン情報も含める）
             const response = await fetch('/api/register-token', {
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    subscription: subscription,
-                    domain: window.location.hostname
-                })
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ subscription: subscriptionData }),
+                body: JSON.stringify({ 
+                    subscription: subscriptionData,
+                    domain: window.location.hostname
+                }),
             });
 
             if (!response.ok) {
