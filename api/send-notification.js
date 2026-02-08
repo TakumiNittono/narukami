@@ -24,7 +24,7 @@ export default async function handler(req, res) {
         // 全ユーザーのサブスクリプション取得
         const { data: users, error } = await supabaseAdmin
             .from('users')
-            .select('fcm_token'); // 実際はsubscription JSON
+            .select('id, fcm_token'); // 実際はsubscription JSON
 
         if (error) throw error;
 
@@ -55,12 +55,15 @@ export default async function handler(req, res) {
                     return;
                 }
                 
+                // テスト送信の場合はnotification_idをnullにする
                 const payload = JSON.stringify({
                     title: title,
                     body: body,
                     icon: '/icons/icon-192.png',
                     badge: '/icons/icon-192.png',
-                    url: url || '/'
+                    url: url || '/',
+                    notification_id: null, // テスト送信はIDなし
+                    notification_type: 'immediate'
                 });
 
                 await webpush.sendNotification(subscription, payload);

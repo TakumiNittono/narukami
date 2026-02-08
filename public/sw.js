@@ -63,7 +63,10 @@ self.addEventListener('push', (event) => {
         body: '新しい通知があります',
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
-        url: '/'
+        url: '/',
+        notification_id: null,
+        notification_type: 'scheduled',
+        user_id: null
     };
     
     if (event.data) {
@@ -74,7 +77,10 @@ self.addEventListener('push', (event) => {
                 body: data.body || notificationData.body,
                 icon: data.icon || notificationData.icon,
                 badge: data.badge || notificationData.badge,
-                url: data.url || data.link || notificationData.url
+                url: data.url || data.link || notificationData.url,
+                notification_id: data.notification_id || null,
+                notification_type: data.notification_type || 'scheduled',
+                user_id: data.user_id || null
             };
         } catch (e) {
             console.error('[SW] Pushデータのパースエラー:', e);
@@ -82,16 +88,28 @@ self.addEventListener('push', (event) => {
     }
     
     event.waitUntil(
-        self.registration.showNotification(notificationData.title, {
-            body: notificationData.body,
-            icon: notificationData.icon,
-            badge: notificationData.badge,
-            data: {
-                url: notificationData.url
-            },
-            requireInteraction: false,
-            tag: 'narukami-notification'
-        })
+        Promise.all([
+            // 通知を表示
+            self.registration.showNotification(notificationData.title, {
+                body: notificationData.body,
+                icon: notificationData.icon,
+                badge: notificationData.badge,
+                data: {
+                    url: notificationData.url,
+                    notification_id: notificationData.notification_id,
+                    notification_type: notificationData.notification_type,
+                    user_id: notificationData.user_id
+                },
+                requireInteraction: false,
+                tag: 'narukami-notification'
+            }),
+            // 開封イベントをトラッキング
+            notificationData.notification_id ? trackEvent('open', {
+                notification_id: notificationData.notification_id,
+                notification_type: notificationData.notification_type,
+                user_id: notificationData.user_id
+            }) : Promise.resolve()
+        ])
     );
 });
 
@@ -100,21 +118,56 @@ self.addEventListener('notificationclick', (event) => {
     console.log('[SW] Notification clicked:', event);
     event.notification.close();
     
-    const targetUrl = event.notification.data?.url || '/';
+    const notificationData = event.notification.data || {};
+    const targetUrl = notificationData.url || '/';
+    const notificationId = notificationData.notification_id;
+    const notificationType = notificationData.notification_type || 'scheduled';
+    const userId = notificationData.user_id;
+    
+    // クリックイベントをトラッキング
+    const trackPromise = notificationId ? trackEvent('click', {
+        notification_id: notificationId,
+        notification_type: notificationType,
+        user_id: userId,
+        url: targetUrl
+    }) : Promise.resolve();
     
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true })
-            .then((clientList) => {
-                // 既存のウィンドウがあればフォーカス
-                for (const client of clientList) {
-                    if (client.url === targetUrl && 'focus' in client) {
-                        return client.focus();
+        Promise.all([
+            trackPromise,
+            clients.matchAll({ type: 'window', includeUncontrolled: true })
+                .then((clientList) => {
+                    // 既存のウィンドウがあればフォーカス
+                    for (const client of clientList) {
+                        if (client.url === targetUrl && 'focus' in client) {
+                            return client.focus();
+                        }
                     }
-                }
-                // なければ新しいウィンドウを開く
-                if (clients.openWindow) {
-                    return clients.openWindow(targetUrl);
-                }
-            })
+                    // なければ新しいウィンドウを開く
+                    if (clients.openWindow) {
+                        return clients.openWindow(targetUrl);
+                    }
+                })
+        ])
     );
 });
+
+// トラッキングイベントを送信するヘルパー関数
+async function trackEvent(eventType, data) {
+    try {
+        const endpoint = eventType === 'open' ? '/api/track/open' : '/api/track/click';
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            console.warn(`[SW] Track ${eventType} failed:`, response.status);
+        }
+    } catch (err) {
+        console.error(`[SW] Track ${eventType} error:`, err);
+    }
+}

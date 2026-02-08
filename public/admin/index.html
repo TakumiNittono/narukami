@@ -25,8 +25,62 @@
         </header>
 
         <div class="container">
-            <div class="stats">
-                <p>登録ユーザー数: <span id="userCount">-</span>人</p>
+            <!-- KPIサマリカード -->
+            <div class="kpi-cards">
+                <div class="kpi-card">
+                    <div class="kpi-icon">👤</div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">総ユーザー数</div>
+                        <div class="kpi-value" id="kpiTotalUsers">-</div>
+                        <div class="kpi-trend" id="kpiUsersTrend"></div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">📈</div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">新規登録（今週）</div>
+                        <div class="kpi-value" id="kpiNewUsers">-</div>
+                        <div class="kpi-trend" id="kpiNewUsersTrend"></div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">✉️</div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">平均開封率</div>
+                        <div class="kpi-value" id="kpiOpenRate">-</div>
+                        <div class="kpi-trend" id="kpiOpenRateTrend"></div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">🖱</div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">平均CTR</div>
+                        <div class="kpi-value" id="kpiCtr">-</div>
+                        <div class="kpi-trend" id="kpiCtrTrend"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- グラフセクション -->
+            <div class="charts-section">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>📈 ユーザー推移</h3>
+                        <div class="chart-period">
+                            <button class="period-btn active" data-period="7d" onclick="loadTrends('users', '7d')">7日</button>
+                            <button class="period-btn" data-period="30d" onclick="loadTrends('users', '30d')">30日</button>
+                            <button class="period-btn" data-period="90d" onclick="loadTrends('users', '90d')">90日</button>
+                        </div>
+                    </div>
+                    <canvas id="usersChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>📊 通知パフォーマンス（直近10件）</h3>
+                    </div>
+                    <canvas id="notificationsChart"></canvas>
+                </div>
             </div>
 
             <div class="actions">
@@ -43,6 +97,8 @@
         </div>
     </div>
 
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="/admin/admin.js"></script>
 </body>
 </html>

@@ -53,7 +53,7 @@ function showMainScreen() {
     if (loginScreen) loginScreen.style.display = 'none';
     if (mainScreen) mainScreen.style.display = 'block';
     
-    loadStats();
+    loadDashboard();
     loadNotifications();
 }
 
@@ -94,11 +94,21 @@ function logout() {
     showLoginScreen();
 }
 
-// ユーザー数取得
-async function loadStats() {
+// ダッシュボードデータ読み込み
+let usersChart = null;
+let notificationsChart = null;
+
+async function loadDashboard() {
+    await loadKPIs();
+    await loadTrends('users', '30d');
+    await loadNotificationsChart();
+}
+
+// KPIサマリ読み込み
+async function loadKPIs() {
     try {
         const password = localStorage.getItem('adminPassword');
-        const response = await fetch('/api/stats', {
+        const response = await fetch('/api/analytics/overview', {
             headers: {
                 'Authorization': `Bearer ${password}`
             }
@@ -106,11 +116,198 @@ async function loadStats() {
 
         if (response.ok) {
             const result = await response.json();
-            document.getElementById('userCount').textContent = result.data.user_count || 0;
+            const data = result.data;
+
+            // KPIカード更新
+            document.getElementById('kpiTotalUsers').textContent = formatNumber(data.total_users);
+            document.getElementById('kpiNewUsers').textContent = formatNumber(data.new_users_this_week);
+            document.getElementById('kpiOpenRate').textContent = formatPercent(data.avg_open_rate);
+            document.getElementById('kpiCtr').textContent = formatPercent(data.avg_ctr);
+
+            // トレンド表示
+            updateTrend('kpiUsersTrend', data.trends.users_change_pct);
+            updateTrend('kpiNewUsersTrend', data.trends.new_users_change_pct);
+            updateTrend('kpiOpenRateTrend', data.trends.open_rate_change_pct);
+            updateTrend('kpiCtrTrend', data.trends.ctr_change_pct);
         }
     } catch (error) {
-        console.error('Stats load error:', error);
+        console.error('KPI load error:', error);
     }
+}
+
+// トレンド表示更新
+function updateTrend(elementId, changePct) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    const isPositive = changePct >= 0;
+    const symbol = isPositive ? '▲' : '▼';
+    const color = isPositive ? '#28a745' : '#dc3545';
+    
+    element.textContent = `${symbol} ${Math.abs(changePct).toFixed(1)}%`;
+    element.style.color = color;
+}
+
+// グラフデータ読み込み
+async function loadTrends(metric, period) {
+    try {
+        const password = localStorage.getItem('adminPassword');
+        const response = await fetch(`/api/analytics/trends?metric=${metric}&period=${period}`, {
+            headers: {
+                'Authorization': `Bearer ${password}`
+            }
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            const dataPoints = result.data.data_points;
+
+            if (metric === 'users') {
+                updateUsersChart(dataPoints, period);
+            }
+        }
+    } catch (error) {
+        console.error('Trends load error:', error);
+    }
+}
+
+// ユーザー推移グラフ更新
+function updateUsersChart(dataPoints, period) {
+    const ctx = document.getElementById('usersChart');
+    if (!ctx) return;
+
+    const labels = dataPoints.map(d => {
+        const date = new Date(d.date);
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    });
+    const totalData = dataPoints.map(d => d.value);
+    const newData = dataPoints.map(d => d.new || 0);
+
+    if (usersChart) {
+        usersChart.destroy();
+    }
+
+    usersChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '累計ユーザー数',
+                    data: totalData,
+                    borderColor: '#4A90D9',
+                    backgroundColor: 'rgba(74, 144, 217, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: '新規登録数',
+                    data: newData,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// 通知パフォーマンスグラフ読み込み
+async function loadNotificationsChart() {
+    try {
+        const password = localStorage.getItem('adminPassword');
+        const response = await fetch('/api/analytics/notifications?limit=10', {
+            headers: {
+                'Authorization': `Bearer ${password}`
+            }
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            const notifications = result.data.slice(0, 10).reverse(); // 最新10件
+
+            const ctx = document.getElementById('notificationsChart');
+            if (!ctx) return;
+
+            const labels = notifications.map(n => {
+                const date = new Date(n.send_at);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            });
+            const sentData = notifications.map(n => n.performance.total_sent);
+            const openedData = notifications.map(n => n.performance.total_opened);
+            const clickedData = notifications.map(n => n.performance.total_clicked);
+
+            if (notificationsChart) {
+                notificationsChart.destroy();
+            }
+
+            notificationsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '送信数',
+                            data: sentData,
+                            backgroundColor: '#4A90D9'
+                        },
+                        {
+                            label: '開封数',
+                            data: openedData,
+                            backgroundColor: '#28a745'
+                        },
+                        {
+                            label: 'クリック数',
+                            data: clickedData,
+                            backgroundColor: '#ffc107'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Notifications chart load error:', error);
+    }
+}
+
+// ユーティリティ関数
+function formatNumber(num) {
+    if (num === null || num === undefined) return '-';
+    return num.toLocaleString('ja-JP');
+}
+
+function formatPercent(num) {
+    if (num === null || num === undefined) return '-';
+    return `${num.toFixed(1)}%`;
 }
 
 // 通知一覧取得
@@ -121,34 +318,87 @@ async function loadNotifications() {
 
     try {
         const password = localStorage.getItem('adminPassword');
-        const response = await fetch('/api/notifications/list', {
-            headers: {
-                'Authorization': `Bearer ${password}`
-            }
-        });
+        
+        // 通知一覧とパフォーマンスデータを取得
+        const [notificationsRes, analyticsRes] = await Promise.all([
+            fetch('/api/notifications/list', {
+                headers: { 'Authorization': `Bearer ${password}` }
+            }),
+            fetch('/api/analytics/notifications?limit=100', {
+                headers: { 'Authorization': `Bearer ${password}` }
+            })
+        ]);
 
-        if (response.ok) {
-            const result = await response.json();
+        if (notificationsRes.ok && analyticsRes.ok) {
+            const notificationsResult = await notificationsRes.json();
+            const analyticsResult = await analyticsRes.json();
             
-            if (result.data && result.data.length > 0) {
-                listDiv.innerHTML = result.data.map(notif => `
-                    <div class="notification-item">
-                        <h3>${escapeHtml(notif.title)}</h3>
-                        <p>${escapeHtml(notif.body)}</p>
-                        ${notif.url ? `<p>URL: <a href="${escapeHtml(notif.url)}" target="_blank">${escapeHtml(notif.url)}</a></p>` : ''}
-                        <div class="notification-meta">
-                            <span>送信予定: ${formatDateTime(notif.send_at)}</span>
-                            <span class="status-badge ${notif.sent ? 'sent' : 'pending'}">
-                                ${notif.sent ? '✅ 送信済み' : '⏳ 予約済み'}
-                            </span>
+            // パフォーマンスデータをマップ
+            const perfMap = {};
+            if (analyticsResult.data) {
+                analyticsResult.data.forEach(item => {
+                    perfMap[item.id] = item.performance;
+                });
+            }
+
+            if (notificationsResult.data && notificationsResult.data.length > 0) {
+                listDiv.innerHTML = notificationsResult.data.map(notif => {
+                    const perf = perfMap[notif.id] || {
+                        total_sent: 0,
+                        total_opened: 0,
+                        total_clicked: 0,
+                        open_rate: 0,
+                        ctr: 0
+                    };
+
+                    return `
+                        <div class="notification-item">
+                            <div class="notification-header">
+                                <h3>${escapeHtml(notif.title)}</h3>
+                                <span class="status-badge ${notif.sent ? 'sent' : 'pending'}">
+                                    ${notif.sent ? '✅ 送信済み' : '⏳ 予約済み'}
+                                </span>
+                            </div>
+                            <p>${escapeHtml(notif.body)}</p>
+                            ${notif.url ? `<p>URL: <a href="${escapeHtml(notif.url)}" target="_blank">${escapeHtml(notif.url)}</a></p>` : ''}
+                            <div class="notification-meta">
+                                <span>送信予定: ${formatDateTime(notif.send_at)}</span>
+                            </div>
+                            ${notif.sent && perf.total_sent > 0 ? `
+                                <div class="notification-performance">
+                                    <h4>📊 パフォーマンス</h4>
+                                    <div class="perf-grid">
+                                        <div class="perf-item">
+                                            <div class="perf-label">送信数</div>
+                                            <div class="perf-value">${formatNumber(perf.total_sent)}</div>
+                                        </div>
+                                        <div class="perf-item">
+                                            <div class="perf-label">開封数</div>
+                                            <div class="perf-value">${formatNumber(perf.total_opened)}</div>
+                                        </div>
+                                        <div class="perf-item">
+                                            <div class="perf-label">クリック数</div>
+                                            <div class="perf-value">${formatNumber(perf.total_clicked)}</div>
+                                        </div>
+                                        <div class="perf-item">
+                                            <div class="perf-label">開封率</div>
+                                            <div class="perf-value">${formatPercent(perf.open_rate)}</div>
+                                        </div>
+                                        <div class="perf-item">
+                                            <div class="perf-label">CTR</div>
+                                            <div class="perf-value">${formatPercent(perf.ctr)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${!notif.sent ? `
+                                <button class="test-send-btn" onclick="testSend(${notif.id}, '${escapeHtml(notif.title)}', '${escapeHtml(notif.body)}', '${escapeHtml(notif.url || '')}')">
+                                    テスト送信
+                                </button>
+                            ` : ''}
                         </div>
-                        ${!notif.sent ? `
-                            <button class="test-send-btn" onclick="testSend(${notif.id}, '${escapeHtml(notif.title)}', '${escapeHtml(notif.body)}', '${escapeHtml(notif.url || '')}')">
-                                テスト送信
-                            </button>
-                        ` : ''}
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             } else {
                 listDiv.innerHTML = '<p class="loading">通知がありません</p>';
             }
