@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
 // overview処理
 async function handleOverview(req, res) {
-    const tenantId = req.query.tenant_id; // フルマネージド対応
+    const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id) : null; // フルマネージド対応
 
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -186,7 +186,7 @@ async function handleOverview(req, res) {
 
 // notifications処理
 async function handleNotifications(req, res) {
-    const tenantId = req.query.tenant_id; // フルマネージド対応
+    const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id) : null; // フルマネージド対応
     const limit = parseInt(req.query.limit) || 30;
     const offset = parseInt(req.query.offset) || 0;
 
@@ -202,19 +202,40 @@ async function handleNotifications(req, res) {
         notificationsQuery = notificationsQuery.eq('tenant_id', tenantId);
     }
 
-    const { data: notifications } = await notificationsQuery;
-
-    const notificationIds = notifications.map(n => n.id);
-    let statsQuery = supabaseAdmin
-        .from('notification_stats')
-        .select('*')
-        .in('notification_id', notificationIds);
+    const { data: notifications, error: notificationsError } = await notificationsQuery;
     
-    if (tenantId) {
-        statsQuery = statsQuery.eq('tenant_id', tenantId);
+    if (notificationsError) {
+        console.error('Notifications query error:', notificationsError);
+        // エラーの場合、空配列を返す
+        return res.status(200).json({
+            status: 'ok',
+            data: []
+        });
     }
+
+    const notificationIds = (notifications || []).map(n => n.id);
+    let stats = [];
     
-    const { data: stats } = await statsQuery;
+    if (notificationIds.length > 0) {
+        let statsQuery = supabaseAdmin
+            .from('notification_stats')
+            .select('*')
+            .in('notification_id', notificationIds);
+        
+        if (tenantId) {
+            statsQuery = statsQuery.eq('tenant_id', tenantId);
+        }
+        
+        const { data: statsData, error: statsError } = await statsQuery;
+        
+        if (statsError) {
+            console.error('Stats query error:', statsError);
+            // エラーの場合、空配列を使用
+            stats = [];
+        } else {
+            stats = statsData || [];
+        }
+    }
 
     const statsMap = {};
     if (stats) {
@@ -223,7 +244,7 @@ async function handleNotifications(req, res) {
         });
     }
 
-    const result = notifications.map(notif => {
+    const result = (notifications || []).map(notif => {
         const stat = statsMap[notif.id] || {
             total_sent: 0,
             total_opened: 0,
@@ -258,7 +279,7 @@ async function handleNotifications(req, res) {
 
 // trends処理
 async function handleTrends(req, res) {
-    const tenantId = req.query.tenant_id; // フルマネージド対応
+    const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id) : null; // フルマネージド対応
     const period = req.query.period || '30d';
     const metric = req.query.metric || 'users';
 
