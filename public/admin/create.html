@@ -83,7 +83,10 @@
     <script src="/admin/admin.js"></script>
     <script>
         var segments = [];
-        var currentTenantId = null;
+        // currentTenantIdはadmin.jsで既に宣言されているので、ここでは宣言しない
+        if (typeof currentTenantId === 'undefined') {
+            window.currentTenantId = null;
+        }
 
         // ========== ヘルパー関数 ==========
 
@@ -130,7 +133,7 @@
                 if (res.ok) {
                     var result = await res.json();
                     if (result.status === 'ok' && result.data && result.data.tenant) {
-                        currentTenantId = result.data.tenant.id;
+                        window.currentTenantId = result.data.tenant.id;
                     }
                 }
             } catch (err) {
@@ -141,8 +144,9 @@
         async function loadSegments() {
             try {
                 var password = localStorage.getItem('adminPassword');
-                var url = currentTenantId
-                    ? '/api/segments?action=list&tenant_id=' + currentTenantId
+                var tenantId = window.currentTenantId || currentTenantId;
+                var url = tenantId
+                    ? '/api/segments?action=list&tenant_id=' + tenantId
                     : '/api/segments?action=list';
                 var response = await fetch(url, {
                     headers: { 'Authorization': 'Bearer ' + password }
@@ -187,7 +191,8 @@
             try {
                 var password = localStorage.getItem('adminPassword');
                 var payload = { segment_id: parseInt(segmentId) };
-                if (currentTenantId) payload.tenant_id = currentTenantId;
+                var tenantId = window.currentTenantId || currentTenantId;
+                if (tenantId) payload.tenant_id = tenantId;
                 var response = await fetch('/api/segments?action=preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + password },
@@ -234,8 +239,9 @@
             if (targetType === 'segment') {
                 payload.target_segment_id = parseInt(segmentId);
             }
-            if (currentTenantId) {
-                payload.tenant_id = currentTenantId;
+            var tenantId = window.currentTenantId || currentTenantId;
+            if (tenantId) {
+                payload.tenant_id = tenantId;
             }
 
             try {
