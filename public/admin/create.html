@@ -80,7 +80,6 @@
         </div>
     </div>
 
-    <script src="/admin/admin.js"></script>
     <script>
         let segments = [];
 
@@ -88,7 +87,10 @@
         async function loadSegments() {
             try {
                 const password = localStorage.getItem('adminPassword');
-                const response = await fetch('/api/segments?action=list', {
+                const url = currentTenantId 
+                    ? `/api/segments?action=list&tenant_id=${currentTenantId}`
+                    : '/api/segments?action=list';
+                const response = await fetch(url, {
                     headers: {
                         'Authorization': `Bearer ${password}`
                     }
@@ -99,13 +101,15 @@
                     segments = result.data || [];
                     
                     const select = document.getElementById('segmentSelect');
-                    select.innerHTML = '<option value="">セグメントを選択...</option>';
-                    segments.forEach(seg => {
-                        const option = document.createElement('option');
-                        option.value = seg.id;
-                        option.textContent = `${seg.name} (${seg.user_count || 0}人)`;
-                        select.appendChild(option);
-                    });
+                    if (select) {
+                        select.innerHTML = '<option value="">セグメントを選択...</option>';
+                        segments.forEach(seg => {
+                            const option = document.createElement('option');
+                            option.value = seg.id;
+                            option.textContent = `${seg.name} (${seg.user_count || 0}人)`;
+                            select.appendChild(option);
+                        });
+                    }
                 }
             } catch (error) {
                 console.error('Segments load error:', error);
@@ -181,12 +185,130 @@
             }
         }
 
+        // 認証チェック（create.html専用）
+        async function checkAuthForCreate() {
+            const password = localStorage.getItem('adminPassword');
+            
+            if (!password) {
+                const loginScreen = document.getElementById('loginScreen');
+                const createScreen = document.getElementById('createScreen');
+                if (loginScreen) loginScreen.style.display = 'flex';
+                if (createScreen) createScreen.style.display = 'none';
+                return false;
+            }
+
+            // パスワード検証
+            try {
+                const response = await fetch('/api/stats', {
+                    headers: {
+                        'Authorization': `Bearer ${password}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    localStorage.removeItem('adminPassword');
+                    const loginScreen = document.getElementById('loginScreen');
+                    const createScreen = document.getElementById('createScreen');
+                    if (loginScreen) loginScreen.style.display = 'flex';
+                    if (createScreen) createScreen.style.display = 'none';
+                    return false;
+                }
+
+                if (response.ok) {
+                    const loginScreen = document.getElementById('loginScreen');
+                    const createScreen = document.getElementById('createScreen');
+                    if (loginScreen) loginScreen.style.display = 'none';
+                    if (createScreen) createScreen.style.display = 'block';
+                    return true;
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+                const loginScreen = document.getElementById('loginScreen');
+                const createScreen = document.getElementById('createScreen');
+                if (loginScreen) loginScreen.style.display = 'flex';
+                if (createScreen) createScreen.style.display = 'none';
+                return false;
+            }
+
+            return false;
+        }
+
+        // ログイン処理（create.html専用）
+        async function loginForCreate() {
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('loginError');
+
+            if (!password) {
+                if (errorDiv) {
+                    errorDiv.textContent = 'パスワードを入力してください';
+                    errorDiv.style.display = 'block';
+                }
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/stats', {
+                    headers: {
+                        'Authorization': `Bearer ${password}`
+                    }
+                });
+
+                if (response.ok) {
+                    localStorage.setItem('adminPassword', password);
+                    const loginScreen = document.getElementById('loginScreen');
+                    const createScreen = document.getElementById('createScreen');
+                    if (loginScreen) loginScreen.style.display = 'none';
+                    if (createScreen) createScreen.style.display = 'block';
+                    await loadTenantId();
+                    await loadSegments();
+                } else {
+                    if (errorDiv) {
+                        errorDiv.textContent = 'パスワードが正しくありません';
+                        errorDiv.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                if (errorDiv) {
+                    errorDiv.textContent = 'エラーが発生しました';
+                    errorDiv.style.display = 'block';
+                }
+            }
+        }
+
         // 作成画面用の初期化
         document.addEventListener('DOMContentLoaded', async () => {
-            await checkAuth();
-            await loadTenantId();
-            document.getElementById('createScreen').style.display = 'block';
-            loadSegments();
+            try {
+                const authenticated = await checkAuthForCreate();
+                
+                if (authenticated) {
+                    await loadTenantId();
+                    await loadSegments();
+                }
+                
+                // ログインボタンのイベントリスナー
+                const loginButton = document.getElementById('loginButton');
+                if (loginButton) {
+                    loginButton.addEventListener('click', loginForCreate);
+                }
+                
+                // Enterキーでログイン
+                const passwordInput = document.getElementById('passwordInput');
+                if (passwordInput) {
+                    passwordInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            loginForCreate();
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Initialization error:', error);
+                // エラーが発生してもログイン画面は表示
+                const loginScreen = document.getElementById('loginScreen');
+                const createScreen = document.getElementById('createScreen');
+                if (loginScreen) loginScreen.style.display = 'flex';
+                if (createScreen) createScreen.style.display = 'none';
+            }
             
             // フォーム送信処理
             document.getElementById('createForm').addEventListener('submit', async (e) => {
