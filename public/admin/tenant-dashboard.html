@@ -574,6 +574,7 @@
                                             ctr: 0
                                         };
                                         const sendDate = notif.send_at ? new Date(notif.send_at).toLocaleString('ja-JP') : '-';
+                                        const isSent = notif.sent || notif.status === 'sent';
                                         return `
                                             <tr>
                                                 <td>${escapeHtml(notif.title || '')}</td>
@@ -581,7 +582,10 @@
                                                 <td>${formatNumber(perf.total_sent)}</td>
                                                 <td>${formatPercent(perf.open_rate)}</td>
                                                 <td>${formatPercent(perf.ctr)}</td>
-                                                <td><span class="badge badge-${notif.sent ? 'success' : 'warning'}">${notif.sent ? '送信済' : '予約済'}</span></td>
+                                                <td>
+                                                    <span class="badge badge-${isSent ? 'success' : 'warning'}">${isSent ? '送信済' : '予約済'}</span>
+                                                    ${!isSent ? `<button class="btn btn-small" onclick="sendNow(${notif.id}, event)" style="margin-left: 8px; padding: 4px 8px; font-size: 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">今すぐ送る</button>` : ''}
+                                                </td>
                                             </tr>
                                         `;
                                     }).join('')}
@@ -604,6 +608,52 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // 今すぐ送信
+        async function sendNow(notificationId, event) {
+            if (!confirm('この通知を今すぐ送信しますか？')) {
+                return;
+            }
+
+            const btn = event ? event.target : document.querySelector(`button[onclick*="sendNow(${notificationId})"]`);
+            const originalText = btn ? btn.textContent : '今すぐ送る';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '送信中...';
+            }
+
+            try {
+                const response = await fetch('/api/notifications/list?action=send-now', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    },
+                    body: JSON.stringify({ notification_id: notificationId })
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'ok') {
+                    alert(`送信完了！\n成功: ${result.sent_count}件\n失敗: ${result.error_count}件`);
+                    // 通知一覧を再読み込み
+                    await loadRecentNotifications();
+                } else {
+                    alert('送信に失敗しました: ' + result.message);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
+                }
+            } catch (error) {
+                console.error('Send now error:', error);
+                alert('エラーが発生しました: ' + error.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            }
         }
 
         // グラフを読み込み
