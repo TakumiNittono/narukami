@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理ダッシュボード - NARUKAMI</title>
+    <link rel="stylesheet" href="admin.css">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+        }
+        
+        .tenant-dashboard {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .tenant-header {
+            background: linear-gradient(135deg, var(--primary-color), #0056b3);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .tenant-header h1 {
+            margin: 0;
+            font-size: 32px;
+        }
+        
+        .tenant-info {
+            text-align: right;
+        }
+        
+        .tenant-info .plan-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .dashboard-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .dashboard-card h3 {
+            margin: 0 0 16px 0;
+            font-size: 16px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .dashboard-card .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .dashboard-card .change {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .dashboard-card .change.positive {
+            color: var(--success-color);
+        }
+        
+        .dashboard-card .change.negative {
+            color: var(--danger-color);
+        }
+        
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .quick-action-btn {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: #333;
+            display: block;
+        }
+        
+        .quick-action-btn:hover {
+            border-color: var(--primary-color);
+            background: #f8f9fa;
+            transform: translateY(-2px);
+        }
+        
+        .quick-action-btn .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .quick-action-btn .label {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .section-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .chart-container {
+            margin-top: 20px;
+            height: 300px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="tenant-dashboard">
+        <!-- テナントヘッダー -->
+        <div class="tenant-header" id="tenantHeader">
+            <div>
+                <h1 id="tenantName">読み込み中...</h1>
+                <div class="tenant-info">
+                    <div id="tenantDomain"></div>
+                    <span class="plan-badge" id="tenantPlan"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIダッシュボード -->
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <h3>👤 総ユーザー数</h3>
+                <div class="value" id="kpiTotalUsers">-</div>
+                <div class="change" id="kpiUsersChange">-</div>
+            </div>
+            <div class="dashboard-card">
+                <h3>📈 今週の新規登録</h3>
+                <div class="value" id="kpiNewUsers">-</div>
+                <div class="change" id="kpiNewUsersChange">-</div>
+            </div>
+            <div class="dashboard-card">
+                <h3>✉️ 平均開封率</h3>
+                <div class="value" id="kpiOpenRate">-</div>
+                <div class="change" id="kpiOpenRateChange">-</div>
+            </div>
+            <div class="dashboard-card">
+                <h3>🖱 平均CTR</h3>
+                <div class="value" id="kpiCtr">-</div>
+                <div class="change" id="kpiCtrChange">-</div>
+            </div>
+            <div class="dashboard-card">
+                <h3>📊 今月の送信数</h3>
+                <div class="value" id="kpiMonthlySent">-</div>
+                <div class="change" id="kpiMonthlySentChange">-</div>
+            </div>
+            <div class="dashboard-card">
+                <h3>📋 未対応タスク</h3>
+                <div class="value" id="kpiPendingTasks">-</div>
+                <div class="change">-</div>
+            </div>
+        </div>
+
+        <!-- クイックアクション -->
+        <div class="quick-actions">
+            <a href="/admin/create" class="quick-action-btn">
+                <div class="icon">➕</div>
+                <div class="label">通知作成</div>
+            </a>
+            <a href="/admin/sequences" class="quick-action-btn">
+                <div class="icon">📊</div>
+                <div class="label">ステップ配信</div>
+            </a>
+            <a href="/admin/segments" class="quick-action-btn">
+                <div class="icon">👥</div>
+                <div class="label">セグメント管理</div>
+            </a>
+            <a href="/admin/analytics" class="quick-action-btn">
+                <div class="icon">📈</div>
+                <div class="label">詳細分析</div>
+            </a>
+            <a href="/admin/users" class="quick-action-btn">
+                <div class="icon">👤</div>
+                <div class="label">ユーザー管理</div>
+            </a>
+            <a href="/admin/settings" class="quick-action-btn">
+                <div class="icon">⚙️</div>
+                <div class="label">設定</div>
+            </a>
+        </div>
+
+        <!-- 最近の通知 -->
+        <div class="section">
+            <div class="section-header">
+                <h2>📧 最近の通知</h2>
+                <a href="/admin/create" class="btn btn-primary">新規作成</a>
+            </div>
+            <div id="recentNotifications">
+                <div class="loading">読み込み中...</div>
+            </div>
+        </div>
+
+        <!-- ユーザー推移グラフ -->
+        <div class="section">
+            <div class="section-header">
+                <h2>📈 ユーザー推移</h2>
+                <div>
+                    <button class="btn" onclick="loadChart('7d')">7日</button>
+                    <button class="btn" onclick="loadChart('30d')">30日</button>
+                    <button class="btn" onclick="loadChart('90d')">90日</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="usersChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 通知パフォーマンス -->
+        <div class="section">
+            <div class="section-header">
+                <h2>📊 通知パフォーマンス（直近10件）</h2>
+            </div>
+            <div class="chart-container">
+                <canvas id="notificationsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        // ドメインからテナントを識別（モックモード）
+        const MOCK_MODE = true;
+        let currentTenant = null;
+        let tenantId = null;
+
+        // 現在のドメインを取得
+        function getCurrentDomain() {
+            return window.location.hostname;
+        }
+
+        // テナント情報を取得（モック）
+        async function loadTenantInfo() {
+            if (MOCK_MODE) {
+                // モックデータ
+                const domain = getCurrentDomain();
+                currentTenant = {
+                    id: 1,
+                    name: 'サンプル企業A',
+                    domain: domain,
+                    plan: 'pro',
+                    monthly_sent_count: 45000,
+                    monthly_limit: 100000,
+                    status: 'active'
+                };
+                tenantId = currentTenant.id;
+                
+                document.getElementById('tenantName').textContent = currentTenant.name;
+                document.getElementById('tenantDomain').textContent = currentTenant.domain;
+                document.getElementById('tenantPlan').textContent = currentTenant.plan.toUpperCase();
+                
+                return;
+            }
+            
+            // 実際のAPI呼び出し（将来実装）
+            // const domain = getCurrentDomain();
+            // const res = await fetch(`/api/tenants?domain=${domain}`);
+            // currentTenant = await res.json();
+            // tenantId = currentTenant.id;
+        }
+
+        // KPIデータを読み込み
+        async function loadKPIs() {
+            if (MOCK_MODE) {
+                // モックデータ
+                document.getElementById('kpiTotalUsers').textContent = '1,250';
+                document.getElementById('kpiUsersChange').textContent = '前週比 +12%';
+                document.getElementById('kpiUsersChange').className = 'change positive';
+                
+                document.getElementById('kpiNewUsers').textContent = '45';
+                document.getElementById('kpiNewUsersChange').textContent = '前週比 +8%';
+                document.getElementById('kpiNewUsersChange').className = 'change positive';
+                
+                document.getElementById('kpiOpenRate').textContent = '24.5%';
+                document.getElementById('kpiOpenRateChange').textContent = '前週比 +2.1%';
+                document.getElementById('kpiOpenRateChange').className = 'change positive';
+                
+                document.getElementById('kpiCtr').textContent = '8.2%';
+                document.getElementById('kpiCtrChange').textContent = '前週比 +0.5%';
+                document.getElementById('kpiCtrChange').className = 'change positive';
+                
+                document.getElementById('kpiMonthlySent').textContent = '45,000';
+                document.getElementById('kpiMonthlySentChange').textContent = '上限: 100,000';
+                
+                document.getElementById('kpiPendingTasks').textContent = '3';
+                return;
+            }
+            
+            // 実際のAPI呼び出し
+            // const res = await fetch(`/api/analytics?type=overview&tenant_id=${tenantId}`);
+            // const data = await res.json();
+            // ... データを表示
+        }
+
+        // 最近の通知を読み込み
+        async function loadRecentNotifications() {
+            if (MOCK_MODE) {
+                const container = document.getElementById('recentNotifications');
+                container.innerHTML = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>タイトル</th>
+                                <th>送信日時</th>
+                                <th>送信数</th>
+                                <th>開封率</th>
+                                <th>CTR</th>
+                                <th>ステータス</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>新商品発売のお知らせ</td>
+                                <td>2026-02-08 10:00</td>
+                                <td>12,500</td>
+                                <td>26.5%</td>
+                                <td>9.2%</td>
+                                <td><span class="badge badge-success">送信済</span></td>
+                            </tr>
+                            <tr>
+                                <td>キャンペーン開始</td>
+                                <td>2026-02-07 14:30</td>
+                                <td>10,200</td>
+                                <td>23.1%</td>
+                                <td>7.8%</td>
+                                <td><span class="badge badge-success">送信済</span></td>
+                            </tr>
+                            <tr>
+                                <td>メンテナンス通知</td>
+                                <td>2026-02-06 09:00</td>
+                                <td>8,900</td>
+                                <td>28.3%</td>
+                                <td>6.5%</td>
+                                <td><span class="badge badge-success">送信済</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+                return;
+            }
+            
+            // 実際のAPI呼び出し
+            // const res = await fetch(`/api/notifications/list?tenant_id=${tenantId}&limit=10`);
+            // const notifications = await res.json();
+            // ... テーブルを生成
+        }
+
+        // グラフを読み込み
+        let usersChart = null;
+        let notificationsChart = null;
+
+        async function loadChart(period) {
+            if (MOCK_MODE) {
+                // モックデータでグラフを生成
+                const ctx1 = document.getElementById('usersChart').getContext('2d');
+                const ctx2 = document.getElementById('notificationsChart').getContext('2d');
+                
+                if (usersChart) usersChart.destroy();
+                if (notificationsChart) notificationsChart.destroy();
+                
+                usersChart = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: ['1/1', '1/8', '1/15', '1/22', '1/29', '2/5', '2/8'],
+                        datasets: [{
+                            label: '総ユーザー数',
+                            data: [1000, 1050, 1100, 1150, 1200, 1220, 1250],
+                            borderColor: '#007bff',
+                            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+                
+                notificationsChart = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: ['通知1', '通知2', '通知3', '通知4', '通知5'],
+                        datasets: [{
+                            label: '開封率 (%)',
+                            data: [26.5, 23.1, 28.3, 25.2, 27.8],
+                            backgroundColor: '#28a745'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+                return;
+            }
+            
+            // 実際のAPI呼び出し
+            // const res = await fetch(`/api/analytics?type=trends&metric=users&period=${period}&tenant_id=${tenantId}`);
+            // const data = await res.json();
+            // ... グラフを生成
+        }
+
+        // 初期化
+        async function init() {
+            await loadTenantInfo();
+            await loadKPIs();
+            await loadRecentNotifications();
+            await loadChart('30d');
+        }
+
+        init();
+    </script>
+</body>
+</html>

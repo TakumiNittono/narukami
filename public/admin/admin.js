@@ -1,5 +1,50 @@
+// ドメインベースでテナントを識別
+let currentTenantId = null;
+let currentTenant = null;
+
+async function identifyTenantByDomain() {
+    const domain = window.location.hostname;
+    
+    // モックモード（実際のAPI呼び出しは将来実装）
+    // 実際には /api/tenants?domain=xxx でテナント情報を取得
+    if (domain.includes('example.com') || domain.includes('localhost')) {
+        currentTenantId = 1;
+        currentTenant = {
+            id: 1,
+            name: 'サンプル企業A',
+            domain: domain,
+            plan: 'pro'
+        };
+    } else {
+        // デフォルトテナント（モック）
+        currentTenantId = 1;
+        currentTenant = {
+            id: 1,
+            name: 'デフォルトテナント',
+            domain: domain,
+            plan: 'basic'
+        };
+    }
+    
+    // テナント情報を表示
+    const tenantTitle = document.getElementById('tenantTitle');
+    const currentDomainEl = document.getElementById('currentDomain');
+    
+    if (tenantTitle && currentTenant) {
+        tenantTitle.textContent = `${currentTenant.name} - 管理画面`;
+    }
+    if (currentDomainEl) {
+        currentDomainEl.textContent = domain;
+    }
+    
+    return currentTenantId;
+}
+
 // 認証チェック
 async function checkAuth() {
+    // テナントを識別
+    await identifyTenantByDomain();
+    
     const password = localStorage.getItem('adminPassword');
     
     if (!password) {
@@ -108,7 +153,10 @@ async function loadDashboard() {
 async function loadKPIs() {
     try {
         const password = localStorage.getItem('adminPassword');
-        const response = await fetch('/api/analytics?type=overview', {
+        const url = currentTenantId 
+            ? `/api/analytics?type=overview&tenant_id=${currentTenantId}`
+            : '/api/analytics?type=overview';
+        const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${password}`
             }
@@ -152,7 +200,10 @@ function updateTrend(elementId, changePct) {
 async function loadTrends(metric, period) {
     try {
         const password = localStorage.getItem('adminPassword');
-        const response = await fetch(`/api/analytics?type=trends&metric=${metric}&period=${period}`, {
+        const url = currentTenantId 
+            ? `/api/analytics?type=trends&metric=${metric}&period=${period}&tenant_id=${currentTenantId}`
+            : `/api/analytics?type=trends&metric=${metric}&period=${period}`;
+        const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${password}`
             }
@@ -230,7 +281,10 @@ function updateUsersChart(dataPoints, period) {
 async function loadNotificationsChart() {
     try {
         const password = localStorage.getItem('adminPassword');
-        const response = await fetch('/api/analytics?type=notifications&limit=10', {
+        const url = currentTenantId 
+            ? `/api/analytics?type=notifications&limit=10&tenant_id=${currentTenantId}`
+            : '/api/analytics?type=notifications&limit=10';
+        const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${password}`
             }
@@ -320,11 +374,18 @@ async function loadNotifications() {
         const password = localStorage.getItem('adminPassword');
         
         // 通知一覧とパフォーマンスデータを取得
+        const notificationsUrl = currentTenantId 
+            ? `/api/notifications/list?tenant_id=${currentTenantId}`
+            : '/api/notifications/list';
+        const analyticsUrl = currentTenantId 
+            ? `/api/analytics?type=notifications&limit=100&tenant_id=${currentTenantId}`
+            : '/api/analytics?type=notifications&limit=100';
+        
         const [notificationsRes, analyticsRes] = await Promise.all([
-            fetch('/api/notifications/list', {
+            fetch(notificationsUrl, {
                 headers: { 'Authorization': `Bearer ${password}` }
             }),
-            fetch('/api/analytics?type=notifications&limit=100', {
+            fetch(analyticsUrl, {
                 headers: { 'Authorization': `Bearer ${password}` }
             })
         ]);

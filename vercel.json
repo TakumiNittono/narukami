@@ -11,11 +11,16 @@
     }
   ],
   "rewrites": [
-    { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/admin", "destination": "/admin/tenant-dashboard.html" },
+    { "source": "/admin/dashboard", "destination": "/admin/tenant-dashboard.html" },
     { "source": "/admin/create", "destination": "/admin/create.html" },
     { "source": "/admin/sequences", "destination": "/admin/sequences.html" },
     { "source": "/admin/sequences/create", "destination": "/admin/sequences-create.html" },
     { "source": "/admin/managed", "destination": "/admin/managed.html" },
+    { "source": "/admin/analytics", "destination": "/admin/index.html" },
+    { "source": "/admin/users", "destination": "/admin/index.html" },
+    { "source": "/admin/settings", "destination": "/admin/index.html" },
+    { "source": "/admin/segments", "destination": "/admin/index.html" },
     { "source": "/thanks", "destination": "/thanks.html" }
   ],
   "headers": [

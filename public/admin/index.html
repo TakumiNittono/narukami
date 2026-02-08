@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Narukami 管理画面</title>
     <link rel="stylesheet" href="/admin/admin.css">
+    <script>
+        // ドメインベースでテナントを識別してリダイレクト
+        (function() {
+            const currentDomain = window.location.hostname;
+            const path = window.location.pathname;
+            
+            // /admin にアクセスした場合、テナントダッシュボードにリダイレクト
+            if (path === '/admin' || path === '/admin/') {
+                window.location.href = '/admin/dashboard';
+            }
+        })();
+    </script>
 </head>
 <body>
     <!-- ログイン画面 -->
@@ -20,8 +32,11 @@
     <!-- メイン画面 -->
     <div id="mainScreen" class="main-screen" style="display: none;">
         <header class="header">
-            <h1>Narukami 管理画面</h1>
-            <button id="logoutButton" class="btn-secondary">ログアウト</button>
+            <h1 id="tenantTitle">Narukami 管理画面</h1>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <span id="currentDomain" style="color: #666; font-size: 14px;"></span>
+                <button id="logoutButton" class="btn-secondary">ログアウト</button>
+            </div>
         </header>
 
         <div class="container">
