@@ -441,15 +441,26 @@
             }
             
             try {
-                const res = await fetch(`/api/analytics?type=overview&tenant_id=${tenantId}`, {
+                const url = `/api/analytics?type=overview&tenant_id=${tenantId}`;
+                console.log('Loading KPIs for tenant_id:', tenantId);
+                console.log('KPI API URL:', url);
+                
+                const res = await fetch(url, {
                     headers: {
                         'Authorization': `Bearer ${ADMIN_PASSWORD}`
                     }
                 });
                 
+                console.log('KPI API response status:', res.status);
+                
                 if (res.ok) {
                     const result = await res.json();
+                    console.log('KPI API result:', result);
                     const data = result.data;
+                    
+                    console.log('KPI data:', data);
+                    console.log('Total users:', data.total_users);
+                    console.log('New users this week:', data.new_users_this_week);
                     
                     // KPIカード更新
                     document.getElementById('kpiTotalUsers').textContent = formatNumber(data.total_users || 0);
