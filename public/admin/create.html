@@ -8,12 +8,12 @@
 </head>
 <body>
     <!-- ログイン画面 -->
-    <div id="loginScreen" class="login-screen" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; z-index: 1000;">
-        <div class="login-box" style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 300px;">
-            <h1 style="margin: 0 0 20px 0; text-align: center; color: #333;">Narukami 管理画面</h1>
-            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-            <button id="loginButton" class="btn-primary" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">ログイン</button>
-            <div id="loginError" class="error-message" style="display: none; color: red; margin-top: 10px; text-align: center;"></div>
+    <div id="loginScreen" class="login-screen" style="display: flex;">
+        <div class="login-box">
+            <h1>Narukami 管理画面</h1>
+            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
+            <button id="loginButton" class="btn-primary">ログイン</button>
+            <div id="loginError" class="error-message" style="display: none;"></div>
         </div>
     </div>
 
@@ -82,32 +82,81 @@
 
     <script src="/admin/admin.js"></script>
     <script>
-        let segments = [];
+        var segments = [];
+        var currentTenantId = null;
 
-        // セグメント一覧読み込み
+        // ========== ヘルパー関数 ==========
+
+        function showError(message) {
+            var errorDiv = document.getElementById('formError');
+            if (errorDiv) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+            }
+            var successDiv = document.getElementById('formSuccess');
+            if (successDiv) successDiv.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            var successDiv = document.getElementById('formSuccess');
+            if (successDiv) {
+                successDiv.textContent = message;
+                successDiv.style.display = 'block';
+            }
+            var errorDiv = document.getElementById('formError');
+            if (errorDiv) errorDiv.style.display = 'none';
+        }
+
+        function showCreateScreen() {
+            var ls = document.getElementById('loginScreen');
+            var cs = document.getElementById('createScreen');
+            if (ls) ls.style.display = 'none';
+            if (cs) cs.style.display = 'block';
+        }
+
+        function showLoginScreenLocal() {
+            var ls = document.getElementById('loginScreen');
+            var cs = document.getElementById('createScreen');
+            if (ls) ls.style.display = 'flex';
+            if (cs) cs.style.display = 'none';
+        }
+
+        async function loadTenantId() {
+            try {
+                var password = localStorage.getItem('adminPassword');
+                var res = await fetch('/api/stats?domain=' + encodeURIComponent(window.location.hostname), {
+                    headers: { 'Authorization': 'Bearer ' + password }
+                });
+                if (res.ok) {
+                    var result = await res.json();
+                    if (result.status === 'ok' && result.data && result.data.tenant) {
+                        currentTenantId = result.data.tenant.id;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load tenant ID:', err);
+            }
+        }
+
         async function loadSegments() {
             try {
-                const password = localStorage.getItem('adminPassword');
-                const url = currentTenantId 
-                    ? `/api/segments?action=list&tenant_id=${currentTenantId}`
+                var password = localStorage.getItem('adminPassword');
+                var url = currentTenantId
+                    ? '/api/segments?action=list&tenant_id=' + currentTenantId
                     : '/api/segments?action=list';
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${password}`
-                    }
+                var response = await fetch(url, {
+                    headers: { 'Authorization': 'Bearer ' + password }
                 });
-
                 if (response.ok) {
-                    const result = await response.json();
+                    var result = await response.json();
                     segments = result.data || [];
-                    
-                    const select = document.getElementById('segmentSelect');
+                    var select = document.getElementById('segmentSelect');
                     if (select) {
                         select.innerHTML = '<option value="">セグメントを選択...</option>';
-                        segments.forEach(seg => {
-                            const option = document.createElement('option');
+                        segments.forEach(function(seg) {
+                            var option = document.createElement('option');
                             option.value = seg.id;
-                            option.textContent = `${seg.name} (${seg.user_count || 0}人)`;
+                            option.textContent = seg.name + ' (' + (seg.user_count || 0) + '人)';
                             select.appendChild(option);
                         });
                     }
@@ -117,11 +166,9 @@
             }
         }
 
-        // 送信対象タイプ変更
         function updateTargetType() {
-            const targetType = document.querySelector('input[name="target_type"]:checked').value;
-            const segmentSelector = document.getElementById('segmentSelector');
-            
+            var targetType = document.querySelector('input[name="target_type"]:checked').value;
+            var segmentSelector = document.getElementById('segmentSelector');
             if (targetType === 'segment') {
                 segmentSelector.style.display = 'block';
                 updateTargetCount();
@@ -130,269 +177,162 @@
             }
         }
 
-        // 対象ユーザー数更新
         async function updateTargetCount() {
-            const segmentId = document.getElementById('segmentSelect').value;
-            const countDiv = document.getElementById('targetCount');
-            
+            var segmentId = document.getElementById('segmentSelect').value;
+            var countDiv = document.getElementById('targetCount');
             if (!segmentId) {
                 countDiv.textContent = '';
                 return;
             }
-
             try {
-                const password = localStorage.getItem('adminPassword');
-                const payload = { segment_id: parseInt(segmentId) };
-                if (currentTenantId) {
-                    payload.tenant_id = currentTenantId;
-                }
-                const response = await fetch('/api/segments?action=preview', {
+                var password = localStorage.getItem('adminPassword');
+                var payload = { segment_id: parseInt(segmentId) };
+                if (currentTenantId) payload.tenant_id = currentTenantId;
+                var response = await fetch('/api/segments?action=preview', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${password}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + password },
                     body: JSON.stringify(payload)
                 });
-
                 if (response.ok) {
-                    const result = await response.json();
-                    const count = result.data.user_count || 0;
-                    countDiv.textContent = `📊 対象ユーザー数: ${count.toLocaleString('ja-JP')}人`;
+                    var result = await response.json();
+                    var count = result.data.user_count || 0;
+                    countDiv.textContent = '対象ユーザー数: ' + count + '人';
                 }
             } catch (error) {
                 console.error('Target count error:', error);
             }
         }
 
-        // テナントIDを取得（ドメインから）
-        let currentTenantId = null;
-        async function loadTenantId() {
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+
+            var title = document.getElementById('title').value;
+            var body = document.getElementById('body').value;
+            var url = document.getElementById('url').value;
+            var send_at = document.getElementById('send_at').value;
+            var targetType = document.querySelector('input[name="target_type"]:checked').value;
+            var segmentId = document.getElementById('segmentSelect').value;
+
+            if (!title || !body || !send_at) {
+                showError('タイトル、本文、送信日時は必須です');
+                return;
+            }
+
+            if (targetType === 'segment' && !segmentId) {
+                showError('セグメントを選択してください');
+                return;
+            }
+
+            var payload = {
+                title: title,
+                body: body,
+                url: url,
+                send_at: send_at,
+                target_type: targetType
+            };
+
+            if (targetType === 'segment') {
+                payload.target_segment_id = parseInt(segmentId);
+            }
+            if (currentTenantId) {
+                payload.tenant_id = currentTenantId;
+            }
+
             try {
-                const domain = window.location.hostname;
-                const password = localStorage.getItem('adminPassword');
-                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
-                    headers: { 'Authorization': `Bearer ${password}` }
+                var response = await fetch('/api/notifications/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('adminPassword')
+                    },
+                    body: JSON.stringify(payload)
                 });
-                if (res.ok) {
-                    const result = await res.json();
-                    if (result.status === 'ok' && result.data.tenant) {
-                        currentTenantId = result.data.tenant.id;
-                        console.log('Tenant ID loaded:', currentTenantId);
-                    }
+
+                var result = await response.json();
+
+                if (result.status === 'ok') {
+                    showSuccess('通知を作成しました');
+                    setTimeout(function() {
+                        window.location.href = '/admin';
+                    }, 1000);
+                } else {
+                    showError(result.message || '作成に失敗しました');
+                }
+            } catch (error) {
+                console.error('Request error:', error);
+                showError('エラーが発生しました: ' + error.message);
+            }
+        }
+
+        async function doLogin() {
+            var password = document.getElementById('passwordInput').value;
+            var errorDiv = document.getElementById('loginError');
+
+            if (!password) {
+                if (errorDiv) { errorDiv.textContent = 'パスワードを入力してください'; errorDiv.style.display = 'block'; }
+                return;
+            }
+
+            try {
+                var response = await fetch('/api/stats', {
+                    headers: { 'Authorization': 'Bearer ' + password }
+                });
+
+                if (response.ok) {
+                    localStorage.setItem('adminPassword', password);
+                    showCreateScreen();
+                    await loadTenantId();
+                    await loadSegments();
+                } else {
+                    if (errorDiv) { errorDiv.textContent = 'パスワードが正しくありません'; errorDiv.style.display = 'block'; }
                 }
             } catch (err) {
-                console.error('Failed to load tenant ID:', err);
+                if (errorDiv) { errorDiv.textContent = 'エラーが発生しました'; errorDiv.style.display = 'block'; }
             }
         }
 
-        // create.html用の画面表示関数（admin.jsのshowLoginScreen/showMainScreenをオーバーライド）
-        // admin.jsが読み込まれた後に実行されるように、少し遅延させる
-        function overrideScreenFunctions() {
-            if (typeof window.showLoginScreen === 'function') {
-                window.showLoginScreen = function() {
-                    const loginScreen = document.getElementById('loginScreen');
-                    const createScreen = document.getElementById('createScreen');
-                    if (loginScreen) loginScreen.style.display = 'flex';
-                    if (createScreen) createScreen.style.display = 'none';
-                };
+        // ========== 初期化 ==========
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // ログインボタン
+            var loginButton = document.getElementById('loginButton');
+            if (loginButton) {
+                loginButton.addEventListener('click', doLogin);
             }
-            
-            if (typeof window.showMainScreen === 'function') {
-                window.showMainScreen = function() {
-                    const loginScreen = document.getElementById('loginScreen');
-                    const createScreen = document.getElementById('createScreen');
-                    if (loginScreen) loginScreen.style.display = 'none';
-                    if (createScreen) createScreen.style.display = 'block';
-                    // create.htmlではloadDashboard()を呼ばない
-                    // 代わりにloadTenantId()とloadSegments()を呼ぶ
-                    loadTenantId().then(() => loadSegments());
-                };
+
+            // Enterキーでログイン
+            var passwordInput = document.getElementById('passwordInput');
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') doLogin();
+                });
             }
-        }
 
-        // 作成画面用の初期化
-        // 即座にログイン画面を表示（JavaScriptが読み込まれる前でも表示される）
-        (function() {
-            const loginScreen = document.getElementById('loginScreen');
-            const createScreen = document.getElementById('createScreen');
-            if (loginScreen) {
-                loginScreen.style.display = 'flex';
+            // フォーム送信
+            var createForm = document.getElementById('createForm');
+            if (createForm) {
+                createForm.addEventListener('submit', handleFormSubmit);
             }
-            if (createScreen) {
-                createScreen.style.display = 'none';
-            }
-        })();
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // ログイン画面と作成画面の状態を確認
-                const loginScreen = document.getElementById('loginScreen');
-                const createScreen = document.getElementById('createScreen');
-                if (!loginScreen || !createScreen) {
-                    console.error('Required elements not found');
-                    return;
-                }
-                
-                // admin.jsが読み込まれるのを待つ
-                let retryCount = 0;
-                const maxRetries = 20;
-                const checkAdminJs = setInterval(async () => {
-                    if (typeof checkAuth === 'function') {
-                        clearInterval(checkAdminJs);
-                        
-                        // 画面表示関数をオーバーライド
-                        overrideScreenFunctions();
-                        
-                        // 認証チェック（既にログインしていれば認証される）
-                        try {
-                            const authenticated = await checkAuth();
-                            
-                            if (authenticated) {
-                                await loadTenantId();
-                                await loadSegments();
-                            }
-                        } catch (authError) {
-                            console.error('Auth check error:', authError);
-                        }
-                        
-                        // ログインボタンのイベントリスナー（admin.jsのlogin関数を使用）
-                        const loginButton = document.getElementById('loginButton');
-                        if (loginButton) {
-                            // 既存のイベントリスナーを削除してから追加
-                            loginButton.replaceWith(loginButton.cloneNode(true));
-                            const newLoginButton = document.getElementById('loginButton');
-                            newLoginButton.addEventListener('click', async () => {
-                                if (typeof login === 'function') {
-                                    await login();
-                                    // ログイン成功後、create.htmlの処理を実行
-                                    setTimeout(async () => {
-                                        await loadTenantId();
-                                        await loadSegments();
-                                    }, 100);
-                                }
-                            });
-                        }
-                        
-                        // Enterキーでログイン
-                        const passwordInput = document.getElementById('passwordInput');
-                        if (passwordInput) {
-                            passwordInput.addEventListener('keypress', async (e) => {
-                                if (e.key === 'Enter' && typeof login === 'function') {
-                                    await login();
-                                    setTimeout(async () => {
-                                        await loadTenantId();
-                                        await loadSegments();
-                                    }, 100);
-                                }
-                            });
-                        }
-                    } else {
-                        retryCount++;
-                        if (retryCount >= maxRetries) {
-                            clearInterval(checkAdminJs);
-                            console.error('admin.js not loaded after retries');
-                            // admin.jsが読み込まれなくても、ログイン画面は表示されている
-                        }
-                    }
-                }, 100);
-            } catch (error) {
-                console.error('Initialization error:', error);
-                // エラーが発生してもログイン画面は表示
-                const loginScreen = document.getElementById('loginScreen');
-                const createScreen = document.getElementById('createScreen');
-                if (loginScreen) loginScreen.style.display = 'flex';
-                if (createScreen) createScreen.style.display = 'none';
-            }
-            
-            // フォーム送信処理
-            document.getElementById('createForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                const title = document.getElementById('title').value;
-                const body = document.getElementById('body').value;
-                const url = document.getElementById('url').value;
-                const send_at = document.getElementById('send_at').value;
-                const targetType = document.querySelector('input[name="target_type"]:checked').value;
-                const segmentId = document.getElementById('segmentSelect').value;
-
-                if (!title || !body || !send_at) {
-                    showError('タイトル、本文、送信日時は必須です');
-                    return;
-                }
-
-                if (targetType === 'segment' && !segmentId) {
-                    showError('セグメントを選択してください');
-                    return;
-                }
-
-                const payload = {
-                    title,
-                    body,
-                    url,
-                    send_at,
-                    target_type: targetType
-                };
-
-                if (targetType === 'segment') {
-                    payload.target_segment_id = parseInt(segmentId);
-                }
-                
-                // tenant_idを追加
-                if (currentTenantId) {
-                    payload.tenant_id = currentTenantId;
-                }
-
+            // 既にログイン済みかチェック
+            var password = localStorage.getItem('adminPassword');
+            if (password) {
                 try {
-                    const response = await fetch('/api/notifications/create', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                        },
-                        body: JSON.stringify(payload)
+                    var response = await fetch('/api/stats', {
+                        headers: { 'Authorization': 'Bearer ' + password }
                     });
-
-                    let result;
-                    try {
-                        result = await response.json();
-                    } catch (jsonError) {
-                        const text = await response.text();
-                        console.error('Invalid JSON response:', text);
-                        showError('サーバーエラーが発生しました。レスポンスが不正です: ' + text.substring(0, 100));
-                        return;
-                    }
-
-                    if (result.status === 'ok') {
-                        showSuccess('通知を作成しました');
-                        setTimeout(() => {
-                            window.location.href = '/admin';
-                        }, 1000);
+                    if (response.ok) {
+                        showCreateScreen();
+                        await loadTenantId();
+                        await loadSegments();
                     } else {
-                        showError(result.message || '作成に失敗しました');
+                        showLoginScreenLocal();
                     }
-                } catch (error) {
-                    console.error('Request error:', error);
-                    showError('エラーが発生しました: ' + error.message);
+                } catch (err) {
+                    showLoginScreenLocal();
                 }
-            });
             } else {
-                console.error('createForm element not found');
-            }
-        });
-
-            function showError(message) {
-                const errorDiv = document.getElementById('formError');
-                errorDiv.textContent = message;
-                errorDiv.style.display = 'block';
-                document.getElementById('formSuccess').style.display = 'none';
-            }
-
-            function showSuccess(message) {
-                const successDiv = document.getElementById('formSuccess');
-                successDiv.textContent = message;
-                successDiv.style.display = 'block';
-                document.getElementById('formError').style.display = 'none';
+                showLoginScreenLocal();
             }
         });
     </script>
