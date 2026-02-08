@@ -47,29 +47,52 @@ export default async function handler(req, res) {
             }
             
             // テナントの統計情報を取得
-            const { count: userCount } = await supabaseAdmin
+            const tenantIdNum = parseInt(tenant.id);
+            console.log('Fetching stats for tenant_id:', tenantIdNum);
+            
+            const { count: userCount, error: userCountError } = await supabaseAdmin
                 .from('users')
                 .select('*', { count: 'exact', head: true })
-                .eq('tenant_id', tenant.id);
+                .eq('tenant_id', tenantIdNum);
             
-            const { count: notificationCount } = await supabaseAdmin
+            if (userCountError) {
+                console.error('User count error:', userCountError);
+            }
+            
+            console.log('User count for tenant:', tenantIdNum, '=', userCount);
+            
+            const { count: notificationCount, error: notificationCountError } = await supabaseAdmin
                 .from('notifications')
                 .select('*', { count: 'exact', head: true })
-                .eq('tenant_id', tenant.id)
+                .eq('tenant_id', tenantIdNum)
                 .eq('sent', true);
+            
+            if (notificationCountError) {
+                console.error('Notification count error:', notificationCountError);
+            }
+            
+            console.log('Notification count for tenant:', tenantIdNum, '=', notificationCount);
             
             // 未対応タスク数（tasksテーブルが存在する場合）
             let pendingTaskCount = 0;
             try {
-                const { count } = await supabaseAdmin
+                const { count, error: taskCountError } = await supabaseAdmin
                     .from('tasks')
                     .select('*', { count: 'exact', head: true })
-                    .eq('tenant_id', tenant.id)
+                    .eq('tenant_id', tenantIdNum)
                     .in('status', ['pending', 'in_progress']);
-                pendingTaskCount = count || 0;
+                
+                if (taskCountError) {
+                    console.error('Task count error:', taskCountError);
+                } else {
+                    pendingTaskCount = count || 0;
+                }
             } catch (e) {
                 // tasksテーブルが存在しない場合は0
+                console.log('Tasks table may not exist:', e.message);
             }
+            
+            console.log('Pending task count for tenant:', tenantIdNum, '=', pendingTaskCount);
             
             return res.status(200).json({
                 status: 'ok',

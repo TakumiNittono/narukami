@@ -42,12 +42,19 @@ async function handleOverview(req, res) {
         .select('*', { count: 'exact', head: true });
     
     if (tenantId) {
-        usersQuery = usersQuery.eq('tenant_id', tenantId);
+        const tenantIdNum = parseInt(tenantId);
+        console.log('Analytics overview - filtering by tenant_id:', tenantIdNum);
+        usersQuery = usersQuery.eq('tenant_id', tenantIdNum);
     }
 
     const { count: totalUsers, error: usersError } = await usersQuery;
 
-    if (usersError) throw usersError;
+    if (usersError) {
+        console.error('Users query error:', usersError);
+        throw usersError;
+    }
+    
+    console.log('Total users for tenant:', tenantId, '=', totalUsers);
 
     // 2. 今日の新規登録
     let newUsersTodayQuery = supabaseAdmin
