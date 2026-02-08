@@ -353,130 +353,231 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
-        // ドメインからテナントを識別（モックモード）
-        const MOCK_MODE = true;
+        // ドメインからテナントを識別
         let currentTenant = null;
         let tenantId = null;
+        const ADMIN_PASSWORD = localStorage.getItem('adminPassword') || prompt('管理者パスワードを入力してください:');
+        if (ADMIN_PASSWORD) {
+            localStorage.setItem('adminPassword', ADMIN_PASSWORD);
+        }
 
         // 現在のドメインを取得
         function getCurrentDomain() {
             return window.location.hostname;
         }
 
-        // テナント情報を取得（モック）
+        // テナント情報を取得
         async function loadTenantInfo() {
-            if (MOCK_MODE) {
-                // モックデータ
+            try {
                 const domain = getCurrentDomain();
-                currentTenant = {
-                    id: 1,
-                    name: 'サンプル企業A',
-                    domain: domain,
-                    plan: 'pro',
-                    monthly_sent_count: 45000,
-                    monthly_limit: 100000,
-                    status: 'active'
-                };
-                tenantId = currentTenant.id;
+                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    }
+                });
                 
-                document.getElementById('tenantName').textContent = currentTenant.name;
-                document.getElementById('tenantDomain').textContent = currentTenant.domain;
-                document.getElementById('tenantPlan').textContent = currentTenant.plan.toUpperCase();
-                
-                return;
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result.status === 'ok' && result.data.tenant) {
+                        currentTenant = result.data.tenant;
+                        tenantId = currentTenant.id;
+                        
+                        document.getElementById('tenantName').textContent = currentTenant.name;
+                        document.getElementById('tenantDomain').textContent = currentTenant.domain || domain;
+                        document.getElementById('tenantPlan').textContent = (currentTenant.plan || 'basic').toUpperCase();
+                    } else {
+                        // テナントが見つからない場合、モックデータを表示
+                        showMockData();
+                    }
+                } else {
+                    // エラーの場合、モックデータを表示
+                    showMockData();
+                }
+            } catch (err) {
+                console.error('Failed to load tenant info:', err);
+                // エラーの場合、モックデータを表示
+                showMockData();
             }
+        }
+        
+        // モックデータを表示（フォールバック）
+        function showMockData() {
+            const domain = getCurrentDomain();
+            currentTenant = {
+                id: 1,
+                name: 'サンプル企業',
+                domain: domain,
+                plan: 'pro',
+                monthly_sent_count: 0,
+                monthly_limit: 100000,
+                status: 'active'
+            };
+            tenantId = currentTenant.id;
             
-            // 実際のAPI呼び出し（将来実装）
-            // const domain = getCurrentDomain();
-            // const res = await fetch(`/api/tenants?domain=${domain}`);
-            // currentTenant = await res.json();
-            // tenantId = currentTenant.id;
+            document.getElementById('tenantName').textContent = currentTenant.name;
+            document.getElementById('tenantDomain').textContent = currentTenant.domain;
+            document.getElementById('tenantPlan').textContent = currentTenant.plan.toUpperCase();
         }
 
         // KPIデータを読み込み
         async function loadKPIs() {
-            if (MOCK_MODE) {
-                // モックデータ
-                document.getElementById('kpiTotalUsers').textContent = '1,250';
-                document.getElementById('kpiUsersChange').textContent = '前週比 +12%';
-                document.getElementById('kpiUsersChange').className = 'change positive';
-                
-                document.getElementById('kpiNewUsers').textContent = '45';
-                document.getElementById('kpiNewUsersChange').textContent = '前週比 +8%';
-                document.getElementById('kpiNewUsersChange').className = 'change positive';
-                
-                document.getElementById('kpiOpenRate').textContent = '24.5%';
-                document.getElementById('kpiOpenRateChange').textContent = '前週比 +2.1%';
-                document.getElementById('kpiOpenRateChange').className = 'change positive';
-                
-                document.getElementById('kpiCtr').textContent = '8.2%';
-                document.getElementById('kpiCtrChange').textContent = '前週比 +0.5%';
-                document.getElementById('kpiCtrChange').className = 'change positive';
-                
-                document.getElementById('kpiMonthlySent').textContent = '45,000';
-                document.getElementById('kpiMonthlySentChange').textContent = '上限: 100,000';
-                
-                document.getElementById('kpiPendingTasks').textContent = '3';
+            if (!tenantId) {
+                // テナント情報が読み込まれていない場合
+                setTimeout(loadKPIs, 500);
                 return;
             }
             
-            // 実際のAPI呼び出し
-            // const res = await fetch(`/api/analytics?type=overview&tenant_id=${tenantId}`);
-            // const data = await res.json();
-            // ... データを表示
+            try {
+                const res = await fetch(`/api/analytics?type=overview&tenant_id=${tenantId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    }
+                });
+                
+                if (res.ok) {
+                    const result = await res.json();
+                    const data = result.data;
+                    
+                    // KPIカード更新
+                    document.getElementById('kpiTotalUsers').textContent = formatNumber(data.total_users || 0);
+                    document.getElementById('kpiUsersChange').textContent = `前週比 ${data.trends?.users_change_pct >= 0 ? '+' : ''}${(data.trends?.users_change_pct || 0).toFixed(1)}%`;
+                    document.getElementById('kpiUsersChange').className = `change ${data.trends?.users_change_pct >= 0 ? 'positive' : 'negative'}`;
+                    
+                    document.getElementById('kpiNewUsers').textContent = formatNumber(data.new_users_this_week || 0);
+                    document.getElementById('kpiNewUsersChange').textContent = `前週比 ${data.trends?.new_users_change_pct >= 0 ? '+' : ''}${(data.trends?.new_users_change_pct || 0).toFixed(1)}%`;
+                    document.getElementById('kpiNewUsersChange').className = `change ${data.trends?.new_users_change_pct >= 0 ? 'positive' : 'negative'}`;
+                    
+                    document.getElementById('kpiOpenRate').textContent = formatPercent(data.avg_open_rate || 0);
+                    document.getElementById('kpiOpenRateChange').textContent = `前週比 ${data.trends?.open_rate_change_pct >= 0 ? '+' : ''}${(data.trends?.open_rate_change_pct || 0).toFixed(1)}%`;
+                    document.getElementById('kpiOpenRateChange').className = `change ${data.trends?.open_rate_change_pct >= 0 ? 'positive' : 'negative'}`;
+                    
+                    document.getElementById('kpiCtr').textContent = formatPercent(data.avg_ctr || 0);
+                    document.getElementById('kpiCtrChange').textContent = `前週比 ${data.trends?.ctr_change_pct >= 0 ? '+' : ''}${(data.trends?.ctr_change_pct || 0).toFixed(1)}%`;
+                    document.getElementById('kpiCtrChange').className = `change ${data.trends?.ctr_change_pct >= 0 ? 'positive' : 'negative'}`;
+                    
+                    // 月間送信数（テナント情報から）
+                    if (currentTenant) {
+                        document.getElementById('kpiMonthlySent').textContent = formatNumber(currentTenant.monthly_sent_count || 0);
+                        document.getElementById('kpiMonthlySentChange').textContent = `上限: ${formatNumber(currentTenant.monthly_limit || 0)}`;
+                    }
+                    
+                    // 未対応タスク（テナント情報から）
+                    if (currentTenant?.stats) {
+                        document.getElementById('kpiPendingTasks').textContent = formatNumber(currentTenant.stats.pending_task_count || 0);
+                    }
+                } else {
+                    showMockKPIs();
+                }
+            } catch (err) {
+                console.error('Failed to load KPIs:', err);
+                showMockKPIs();
+            }
+        }
+        
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '0';
+            return num.toLocaleString();
+        }
+        
+        function formatPercent(num) {
+            if (num === null || num === undefined) return '0%';
+            return `${num.toFixed(1)}%`;
+        }
+        
+        function showMockKPIs() {
+            document.getElementById('kpiTotalUsers').textContent = '0';
+            document.getElementById('kpiNewUsers').textContent = '0';
+            document.getElementById('kpiOpenRate').textContent = '0%';
+            document.getElementById('kpiCtr').textContent = '0%';
+            document.getElementById('kpiMonthlySent').textContent = '0';
+            document.getElementById('kpiPendingTasks').textContent = '0';
         }
 
         // 最近の通知を読み込み
         async function loadRecentNotifications() {
-            if (MOCK_MODE) {
-                const container = document.getElementById('recentNotifications');
-                container.innerHTML = `
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>タイトル</th>
-                                <th>送信日時</th>
-                                <th>送信数</th>
-                                <th>開封率</th>
-                                <th>CTR</th>
-                                <th>ステータス</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>新商品発売のお知らせ</td>
-                                <td>2026-02-08 10:00</td>
-                                <td>12,500</td>
-                                <td>26.5%</td>
-                                <td>9.2%</td>
-                                <td><span class="badge badge-success">送信済</span></td>
-                            </tr>
-                            <tr>
-                                <td>キャンペーン開始</td>
-                                <td>2026-02-07 14:30</td>
-                                <td>10,200</td>
-                                <td>23.1%</td>
-                                <td>7.8%</td>
-                                <td><span class="badge badge-success">送信済</span></td>
-                            </tr>
-                            <tr>
-                                <td>メンテナンス通知</td>
-                                <td>2026-02-06 09:00</td>
-                                <td>8,900</td>
-                                <td>28.3%</td>
-                                <td>6.5%</td>
-                                <td><span class="badge badge-success">送信済</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                `;
+            if (!tenantId) {
+                setTimeout(loadRecentNotifications, 500);
                 return;
             }
             
-            // 実際のAPI呼び出し
-            // const res = await fetch(`/api/notifications/list?tenant_id=${tenantId}&limit=10`);
-            // const notifications = await res.json();
-            // ... テーブルを生成
+            try {
+                const container = document.getElementById('recentNotifications');
+                
+                // 通知一覧とパフォーマンスデータを取得
+                const [notificationsRes, analyticsRes] = await Promise.all([
+                    fetch(`/api/notifications/list?tenant_id=${tenantId}`, {
+                        headers: { 'Authorization': `Bearer ${ADMIN_PASSWORD}` }
+                    }),
+                    fetch(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`, {
+                        headers: { 'Authorization': `Bearer ${ADMIN_PASSWORD}` }
+                    })
+                ]);
+                
+                if (notificationsRes.ok && analyticsRes.ok) {
+                    const notificationsResult = await notificationsRes.json();
+                    const analyticsResult = await analyticsRes.json();
+                    
+                    // パフォーマンスデータをマップ
+                    const perfMap = {};
+                    if (analyticsResult.data) {
+                        analyticsResult.data.forEach(item => {
+                            perfMap[item.id] = item.performance;
+                        });
+                    }
+                    
+                    const notifications = (notificationsResult.data || []).slice(0, 10);
+                    
+                    if (notifications.length > 0) {
+                        container.innerHTML = `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>タイトル</th>
+                                        <th>送信日時</th>
+                                        <th>送信数</th>
+                                        <th>開封率</th>
+                                        <th>CTR</th>
+                                        <th>ステータス</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${notifications.map(notif => {
+                                        const perf = perfMap[notif.id] || {
+                                            total_sent: 0,
+                                            open_rate: 0,
+                                            ctr: 0
+                                        };
+                                        const sendDate = notif.send_at ? new Date(notif.send_at).toLocaleString('ja-JP') : '-';
+                                        return `
+                                            <tr>
+                                                <td>${escapeHtml(notif.title || '')}</td>
+                                                <td>${sendDate}</td>
+                                                <td>${formatNumber(perf.total_sent)}</td>
+                                                <td>${formatPercent(perf.open_rate)}</td>
+                                                <td>${formatPercent(perf.ctr)}</td>
+                                                <td><span class="badge badge-${notif.sent ? 'success' : 'warning'}">${notif.sent ? '送信済' : '予約済'}</span></td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    } else {
+                        container.innerHTML = '<div class="empty-state">通知がありません</div>';
+                    }
+                } else {
+                    container.innerHTML = '<div class="empty-state">読み込みエラー</div>';
+                }
+            } catch (err) {
+                console.error('Failed to load notifications:', err);
+                document.getElementById('recentNotifications').innerHTML = '<div class="empty-state">読み込みエラー</div>';
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // グラフを読み込み
@@ -484,54 +585,97 @@
         let notificationsChart = null;
 
         async function loadChart(period) {
-            if (MOCK_MODE) {
-                // モックデータでグラフを生成
-                const ctx1 = document.getElementById('usersChart').getContext('2d');
-                const ctx2 = document.getElementById('notificationsChart').getContext('2d');
-                
-                if (usersChart) usersChart.destroy();
-                if (notificationsChart) notificationsChart.destroy();
-                
-                usersChart = new Chart(ctx1, {
-                    type: 'line',
-                    data: {
-                        labels: ['1/1', '1/8', '1/15', '1/22', '1/29', '2/5', '2/8'],
-                        datasets: [{
-                            label: '総ユーザー数',
-                            data: [1000, 1050, 1100, 1150, 1200, 1220, 1250],
-                            borderColor: '#007bff',
-                            backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                            tension: 0.4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false
-                    }
-                });
-                
-                notificationsChart = new Chart(ctx2, {
-                    type: 'bar',
-                    data: {
-                        labels: ['通知1', '通知2', '通知3', '通知4', '通知5'],
-                        datasets: [{
-                            label: '開封率 (%)',
-                            data: [26.5, 23.1, 28.3, 25.2, 27.8],
-                            backgroundColor: '#28a745'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false
-                    }
-                });
+            if (!tenantId) {
+                setTimeout(() => loadChart(period), 500);
                 return;
             }
             
-            // 実際のAPI呼び出し
-            // const res = await fetch(`/api/analytics?type=trends&metric=users&period=${period}&tenant_id=${tenantId}`);
-            // const data = await res.json();
-            // ... グラフを生成
+            try {
+                // ユーザー推移グラフ
+                const trendsRes = await fetch(`/api/analytics?type=trends&metric=users&period=${period}&tenant_id=${tenantId}`, {
+                    headers: { 'Authorization': `Bearer ${ADMIN_PASSWORD}` }
+                });
+                
+                // 通知パフォーマンスグラフ
+                const notificationsRes = await fetch(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`, {
+                    headers: { 'Authorization': `Bearer ${ADMIN_PASSWORD}` }
+                });
+                
+                if (trendsRes.ok) {
+                    const trendsResult = await trendsRes.json();
+                    const dataPoints = trendsResult.data?.data_points || [];
+                    
+                    const ctx1 = document.getElementById('usersChart');
+                    if (ctx1) {
+                        if (usersChart) usersChart.destroy();
+                        
+                        const labels = dataPoints.map(d => {
+                            const date = new Date(d.date);
+                            return `${date.getMonth() + 1}/${date.getDate()}`;
+                        });
+                        const totalData = dataPoints.map(d => d.value || 0);
+                        const newData = dataPoints.map(d => d.new || 0);
+                        
+                        usersChart = new Chart(ctx1.getContext('2d'), {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    {
+                                        label: '総ユーザー数',
+                                        data: totalData,
+                                        borderColor: '#007bff',
+                                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                                        tension: 0.4
+                                    },
+                                    {
+                                        label: '新規登録数',
+                                        data: newData,
+                                        borderColor: '#28a745',
+                                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                                        tension: 0.4
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false
+                            }
+                        });
+                    }
+                }
+                
+                if (notificationsRes.ok) {
+                    const notificationsResult = await notificationsRes.json();
+                    const notifications = (notificationsResult.data || []).slice(0, 10).reverse();
+                    
+                    const ctx2 = document.getElementById('notificationsChart');
+                    if (ctx2 && notifications.length > 0) {
+                        if (notificationsChart) notificationsChart.destroy();
+                        
+                        const labels = notifications.map((n, i) => `通知${i + 1}`);
+                        const openRateData = notifications.map(n => n.performance?.open_rate || 0);
+                        
+                        notificationsChart = new Chart(ctx2.getContext('2d'), {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: '開封率 (%)',
+                                    data: openRateData,
+                                    backgroundColor: '#28a745'
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false
+                            }
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load charts:', err);
+            }
         }
 
         // 初期化
