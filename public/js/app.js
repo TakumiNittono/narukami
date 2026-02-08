@@ -128,6 +128,13 @@ async function requestNotificationPermission() {
 
             // サーバーにサブスクリプション送信
             const response = await fetch('/api/register-token', {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subscription: subscription,
+                    domain: window.location.hostname
+                })
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

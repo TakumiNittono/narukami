@@ -47,7 +47,7 @@ export default async function handler(req, res) {
         // 全ユーザーを取得してJavaScriptでフィルタリング（LIKEクエリのエスケープ問題を回避）
         const { data: allUsers, error: fetchError } = await supabaseAdmin
             .from('users')
-            .select('id, fcm_token');
+            .select('id, fcm_token, tenant_id');
         
         if (fetchError) throw fetchError;
         
@@ -65,19 +65,30 @@ export default async function handler(req, res) {
         let isNewUser = false;
 
         if (existing) {
-            // 既存のレコードを更新
+            // 既存のレコードを更新（tenant_idも更新）
+            const updateData = { fcm_token: subscriptionJson };
+            if (tenantId && !existing.tenant_id) {
+                // tenant_idが設定されていない場合のみ更新
+                updateData.tenant_id = tenantId;
+            }
+            
             const { error } = await supabaseAdmin
                 .from('users')
-                .update({ fcm_token: subscriptionJson })
+                .update(updateData)
                 .eq('id', existing.id);
             
             if (error) throw error;
             userId = existing.id;
         } else {
-            // 新規レコードを挿入
+            // 新規レコードを挿入（tenant_idも設定）
+            const insertData = { fcm_token: subscriptionJson };
+            if (tenantId) {
+                insertData.tenant_id = tenantId;
+            }
+            
             const { data: newUser, error } = await supabaseAdmin
                 .from('users')
-                .insert({ fcm_token: subscriptionJson })
+                .insert(insertData)
                 .select()
                 .single();
             
@@ -104,7 +115,7 @@ export default async function handler(req, res) {
 
         // 新規ユーザーの場合、有効なステップ配信シーケンスに登録
         if (isNewUser && userId) {
-            await enrollUserInStepSequences(userId);
+            await enrollUserInStepSequences(userId, tenantId);
         }
 
         return res.status(200).json({ status: 'ok', message: 'Subscription registered' });
