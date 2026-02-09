@@ -41,11 +41,18 @@ async function handleList(req, res) {
         .select('*')
         .order('created_at', { ascending: false });
     
-    if (tenantId) {
-        sequencesQuery = sequencesQuery.eq('tenant_id', tenantId);
+    // tenant_idでフィルタリング（指定されている場合）
+    // tenant_idがnullのシーケンスも表示される（既存データ対応）
+    if (tenantId !== null && !isNaN(tenantId)) {
+        sequencesQuery = sequencesQuery.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
     }
     
-    const { data: sequences } = await sequencesQuery;
+    const { data: sequences, error: sequencesError } = await sequencesQuery;
+    
+    if (sequencesError) {
+        console.error('Step sequences query error:', sequencesError);
+        return res.status(500).json({ status: 'error', message: 'Failed to fetch sequences' });
+    }
 
     const sequencesWithSteps = await Promise.all(
         sequences.map(async (seq) => {

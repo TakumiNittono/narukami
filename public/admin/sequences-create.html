@@ -67,7 +67,7 @@
     <script src="/admin/admin.js"></script>
     <script>
         let stepCounter = 0;
-        let currentTenantId = null;
+        // currentTenantIdはadmin.jsで既に宣言されているので、ここでは再宣言しない
 
         // テナントIDを取得（ドメインから）
         async function loadTenantId() {
@@ -80,8 +80,14 @@
                 if (res.ok) {
                     const result = await res.json();
                     if (result.status === 'ok' && result.data.tenant) {
-                        currentTenantId = result.data.tenant.id;
-                        console.log('Tenant ID loaded:', currentTenantId);
+                        // admin.jsで宣言されたcurrentTenantIdを更新
+                        if (typeof window.currentTenantId !== 'undefined') {
+                            window.currentTenantId = result.data.tenant.id;
+                        } else {
+                            // admin.jsが読み込まれていない場合のフォールバック
+                            currentTenantId = result.data.tenant.id;
+                        }
+                        console.log('Tenant ID loaded:', currentTenantId || window.currentTenantId);
                     }
                 }
             } catch (err) {
@@ -92,6 +98,10 @@
         document.addEventListener('DOMContentLoaded', async () => {
             await checkAuth();
             await loadTenantId();
+            // currentTenantIdを確実に取得
+            if (!currentTenantId && window.currentTenantId) {
+                currentTenantId = window.currentTenantId;
+            }
             document.getElementById('createScreen').style.display = 'block';
             initForm();
         });
@@ -272,14 +282,15 @@
             }
 
             try {
+                const tenantId = currentTenantId || window.currentTenantId;
                 const payload = {
                     name,
                     description,
                     is_active,
                     steps
                 };
-                if (currentTenantId) {
-                    payload.tenant_id = currentTenantId;
+                if (tenantId) {
+                    payload.tenant_id = tenantId;
                 }
                 const response = await fetch('/api/step-sequences?action=create', {
                     method: 'POST',
