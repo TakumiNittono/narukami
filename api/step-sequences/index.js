@@ -122,10 +122,17 @@ async function handleCreate(req, res) {
         }
     }
 
+    // IPアドレスとUser-Agentから管理者を識別
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.socket?.remoteAddress || 'Unknown';
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const adminIdentifier = `${clientIp}-${userAgent.substring(0, 50)}`.substring(0, 200);
+    
     const insertData = {
         name,
         description: description || '',
-        is_active: is_active !== undefined ? is_active : true
+        is_active: is_active !== undefined ? is_active : true,
+        created_by: adminIdentifier,
+        updated_by: adminIdentifier
     };
     
     if (tenant_id) {
@@ -277,12 +284,18 @@ async function handleUpdate(req, res) {
         }
     }
 
+    // IPアドレスとUser-Agentから管理者を識別
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.socket?.remoteAddress || 'Unknown';
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const adminIdentifier = `${clientIp}-${userAgent.substring(0, 50)}`.substring(0, 200);
+    
     // シーケンスを更新
     const updateData = {
         name,
         description: description || '',
         is_active: is_active !== undefined ? is_active : existingSequence.is_active,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        updated_by: adminIdentifier
     };
 
     const { data: updatedSequence, error: updateError } = await supabaseAdmin

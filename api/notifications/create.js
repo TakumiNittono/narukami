@@ -168,6 +168,11 @@ export default async function handler(req, res) {
         }
 
         console.log('[Create Notification] Inserting notification...');
+        // IPアドレスとUser-Agentから管理者を識別
+        const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.socket?.remoteAddress || 'Unknown';
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        const adminIdentifier = `${clientIp}-${userAgent.substring(0, 50)}`.substring(0, 200);
+        
         const { data, error } = await supabaseAdmin
             .from('notifications')
             .insert({
@@ -180,7 +185,9 @@ export default async function handler(req, res) {
                 target_filter: target_filter || null,
                 target_user_count: targetUserCount,
                 status: 'scheduled',
-                tenant_id: tenantId || null // フルマネージド対応
+                tenant_id: tenantId || null, // フルマネージド対応
+                created_by: adminIdentifier,
+                updated_by: adminIdentifier
             })
             .select();
 

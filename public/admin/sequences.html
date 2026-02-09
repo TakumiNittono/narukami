@@ -157,6 +157,9 @@
                 `).join('')
                 : '<p class="no-data">ステップが設定されていません</p>';
 
+            const createdBy = sequence.created_by ? `<div style="font-size: 12px; color: #666; margin-top: 5px;">作成者: ${escapeHtml(sequence.created_by)}</div>` : '';
+            const updatedBy = sequence.updated_by ? `<div style="font-size: 12px; color: #666;">最終更新: ${escapeHtml(sequence.updated_by)}</div>` : '';
+
             return `
                 <div class="sequence-card" data-id="${sequence.id}">
                     <div class="sequence-header">
@@ -164,6 +167,7 @@
                         <span class="sequence-status ${statusClass}">${statusText}</span>
                     </div>
                     <div class="sequence-description">${escapeHtml(sequence.description || '')}</div>
+                    ${createdBy || updatedBy ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">${createdBy}${updatedBy}</div>` : ''}
                     <div class="steps-list">
                         ${stepsHtml}
                     </div>

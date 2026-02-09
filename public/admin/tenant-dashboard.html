@@ -563,6 +563,7 @@
                                         <th>送信数</th>
                                         <th>開封率</th>
                                         <th>CTR</th>
+                                        <th>作成者</th>
                                         <th>ステータス</th>
                                     </tr>
                                 </thead>
@@ -590,6 +591,8 @@
                                             statusBadge = '<span class="badge badge-warning">予約済</span>';
                                         }
                                         
+                                        const createdBy = notif.created_by ? `<div style="font-size: 11px; color: #666;">${escapeHtml(notif.created_by)}</div>` : '<div style="font-size: 11px; color: #999;">-</div>';
+                                        
                                         return `
                                             <tr>
                                                 <td>${escapeHtml(notif.title || '')}</td>
@@ -597,6 +600,7 @@
                                                 <td>${formatNumber(perf.total_sent)}</td>
                                                 <td>${formatPercent(perf.open_rate)}</td>
                                                 <td>${formatPercent(perf.ctr)}</td>
+                                                <td>${createdBy}</td>
                                                 <td>
                                                     ${statusBadge}
                                                     ${!isSent && !isFailed ? `<button class="btn btn-small" onclick="sendNow(${notif.id}, event)" style="margin-left: 8px; padding: 4px 8px; font-size: 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">今すぐ送る</button>` : ''}
