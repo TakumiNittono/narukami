@@ -19,7 +19,7 @@
     { "source": "/admin/sequences/edit", "destination": "/admin/sequences-edit.html" },
     { "source": "/admin/managed", "destination": "/admin/managed.html" },
     { "source": "/admin/analytics", "destination": "/admin/index.html" },
-    { "source": "/admin/users", "destination": "/admin/index.html" },
+    { "source": "/admin/users", "destination": "/admin/users.html" },
     { "source": "/admin/settings", "destination": "/admin/index.html" },
     { "source": "/admin/segments", "destination": "/admin/index.html" },
     { "source": "/thanks", "destination": "/thanks.html" }
