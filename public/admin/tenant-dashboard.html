@@ -355,7 +355,7 @@
     </div>
 
     <!-- ログイン画面 -->
-    <div id="loginScreen" class="login-screen" style="display: none;">
+    <div id="loginScreen" class="login-screen">
         <div class="login-box">
             <h1>Narukami 管理画面</h1>
             <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
@@ -810,23 +810,102 @@
 
         // 初期化
         async function init() {
-            // 認証チェック
-            const isAuthenticated = await checkAuth();
-            if (!isAuthenticated) {
-                return; // ログイン画面が表示される
+            try {
+                console.log('[Dashboard] Initializing...');
+                
+                // 認証チェック
+                const isAuthenticated = await checkAuth();
+                console.log('[Dashboard] Auth check result:', isAuthenticated);
+                
+                if (!isAuthenticated) {
+                    // ログイン画面を表示
+                    const loginScreen = document.getElementById('loginScreen');
+                    if (loginScreen) {
+                        loginScreen.style.display = 'flex';
+                        console.log('[Dashboard] Showing login screen');
+                    }
+                    return; // ログイン画面が表示される
+                }
+
+                // 認証済みの場合のみダッシュボードを表示
+                const loginScreen = document.getElementById('loginScreen');
+                const dashboard = document.querySelector('.tenant-dashboard');
+                if (loginScreen) loginScreen.style.display = 'none';
+                if (dashboard) {
+                    dashboard.style.display = 'block';
+                    console.log('[Dashboard] Showing dashboard');
+                } else {
+                    console.error('[Dashboard] Dashboard element not found!');
+                }
+                
+                console.log('[Dashboard] Loading data...');
+                await loadTenantInfo();
+                await loadKPIs();
+                await loadRecentNotifications();
+                await loadChart('30d');
+                console.log('[Dashboard] Initialization complete');
+            } catch (error) {
+                console.error('[Dashboard] Initialization error:', error);
+                // エラー時もログイン画面を表示
+                const loginScreen = document.getElementById('loginScreen');
+                if (loginScreen) loginScreen.style.display = 'flex';
+            }
+        }
+
+        // ログイン成功時の処理をオーバーライド
+        const originalLogin = window.login;
+        window.login = async function() {
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('loginError');
+
+            if (!password) {
+                errorDiv.textContent = 'パスワードを入力してください';
+                errorDiv.style.display = 'block';
+                return;
             }
 
-            // 認証済みの場合のみダッシュボードを表示
-            document.querySelector('.tenant-dashboard').style.display = 'block';
+            try {
+                const response = await fetch('/api/stats', {
+                    headers: {
+                        'Authorization': `Bearer ${password}`
+                    }
+                });
+
+                if (response.ok) {
+                    localStorage.setItem('adminPassword', password);
+                    // ログイン成功後、ダッシュボードを初期化
+                    await init();
+                } else {
+                    errorDiv.textContent = 'パスワードが正しくありません';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'エラーが発生しました';
+                errorDiv.style.display = 'block';
+            }
+        };
+
+        // ログインボタンのイベントリスナーを設定
+        function setupLoginButton() {
+            const loginButton = document.getElementById('loginButton');
+            const passwordInput = document.getElementById('passwordInput');
             
-            await loadTenantInfo();
-            await loadKPIs();
-            await loadRecentNotifications();
-            await loadChart('30d');
+            if (loginButton) {
+                loginButton.addEventListener('click', window.login);
+            }
+            
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        window.login();
+                    }
+                });
+            }
         }
 
         // ページ読み込み時に初期化
         document.addEventListener('DOMContentLoaded', () => {
+            setupLoginButton();
             init();
         });
     </script>
