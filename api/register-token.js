@@ -38,6 +38,36 @@ export default async function handler(req, res) {
     }
 
     try {
+        // ドメインからtenant_idを取得
+        let tenantId = null;
+        if (domain) {
+            try {
+                // tenant_domainsテーブルからtenant_idを取得
+                const { data: tenantDomain } = await supabaseAdmin
+                    .from('tenant_domains')
+                    .select('tenant_id')
+                    .eq('domain', domain)
+                    .single();
+                
+                if (tenantDomain) {
+                    tenantId = tenantDomain.tenant_id;
+                } else {
+                    // tenant_domainsにない場合はtenantsテーブルから直接取得
+                    const { data: tenant } = await supabaseAdmin
+                        .from('tenants')
+                        .select('id')
+                        .eq('domain', domain)
+                        .single();
+                    
+                    if (tenant) {
+                        tenantId = tenant.id;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to get tenant_id from domain:', err);
+            }
+        }
+        
         // サブスクリプション情報をJSON文字列として保存
         // fcm_tokenカラムにサブスクリプションJSON全体を保存
         // endpointはユニークなので、同じendpointの場合は上書きされる

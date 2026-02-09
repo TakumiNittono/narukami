@@ -575,6 +575,21 @@
                                         };
                                         const sendDate = notif.send_at ? new Date(notif.send_at).toLocaleString('ja-JP') : '-';
                                         const isSent = notif.sent || notif.status === 'sent';
+                                        const isFailed = notif.status === 'failed' || notif.status === 'no_target_users';
+                                        const isScheduled = !isSent && !isFailed && notif.status === 'scheduled';
+                                        
+                                        // ステータス表示の決定
+                                        let statusBadge = '';
+                                        if (isSent) {
+                                            statusBadge = '<span class="badge badge-success">送信済</span>';
+                                        } else if (isFailed || notif.status === 'no_target_users') {
+                                            statusBadge = '<span class="badge badge-danger">送信失敗</span>';
+                                        } else if (isScheduled) {
+                                            statusBadge = '<span class="badge badge-warning">予約済</span>';
+                                        } else {
+                                            statusBadge = '<span class="badge badge-warning">予約済</span>';
+                                        }
+                                        
                                         return `
                                             <tr>
                                                 <td>${escapeHtml(notif.title || '')}</td>
@@ -583,8 +598,8 @@
                                                 <td>${formatPercent(perf.open_rate)}</td>
                                                 <td>${formatPercent(perf.ctr)}</td>
                                                 <td>
-                                                    <span class="badge badge-${isSent ? 'success' : 'warning'}">${isSent ? '送信済' : '予約済'}</span>
-                                                    ${!isSent ? `<button class="btn btn-small" onclick="sendNow(${notif.id}, event)" style="margin-left: 8px; padding: 4px 8px; font-size: 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">今すぐ送る</button>` : ''}
+                                                    ${statusBadge}
+                                                    ${!isSent && !isFailed ? `<button class="btn btn-small" onclick="sendNow(${notif.id}, event)" style="margin-left: 8px; padding: 4px 8px; font-size: 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">今すぐ送る</button>` : ''}
                                                 </td>
                                             </tr>
                                         `;

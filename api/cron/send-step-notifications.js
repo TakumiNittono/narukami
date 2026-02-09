@@ -21,8 +21,11 @@ export default async function handler(req, res) {
     try {
         console.log('[Step Cron] Starting step notification job...');
 
+        // リクエストボディからtenant_idを取得（手動実行時）
+        const tenantId = req.body?.tenant_id ? parseInt(req.body.tenant_id) : null;
+        
         // 配信予定時刻を過ぎた未完了の進捗を取得
-        const { data: pendingProgress, error: progressError } = await supabaseAdmin
+        let progressQuery = supabaseAdmin
             .from('user_step_progress')
             .select(`
                 id,
@@ -30,11 +33,21 @@ export default async function handler(req, res) {
                 sequence_id,
                 current_step,
                 next_notification_at,
-                users!inner(id, fcm_token)
+                users!inner(id, fcm_token, tenant_id),
+                step_sequences!inner(id, tenant_id)
             `)
             .eq('completed', false)
-            .lte('next_notification_at', new Date().toISOString())
-            .limit(100); // 一度に処理する件数を制限
+            .lte('next_notification_at', new Date().toISOString());
+        
+        const { data: allProgress, error: progressError } = await progressQuery
+            .limit(1000); // 一度に取得する件数を増やす（フィルタリング前）
+        
+        if (progressError) throw progressError;
+        
+        // tenant_idでフィルタリング（指定されている場合、JavaScriptでフィルタリング）
+        const pendingProgress = tenantId 
+            ? (allProgress || []).filter(p => p.users?.tenant_id === tenantId)
+            : (allProgress || []);
 
         if (progressError) throw progressError;
 

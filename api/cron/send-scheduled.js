@@ -147,30 +147,38 @@ export default async function handler(req, res) {
 
             await Promise.all(sendPromises);
 
-            // ===== STEP 4: 送信済みに更新 =====
-            await supabaseAdmin
-                .from('notifications')
-                .update({ sent: true, status: 'sent' })
-                .eq('id', notification.id);
-            
-            // notification_stats の初期化（送信数だけ設定）
-            const statsData = {
-                notification_id: notification.id,
-                notification_type: 'scheduled',
-                total_sent: successCount,
-                updated_at: new Date().toISOString()
-            };
-            
-            // tenant_idが存在する場合は設定
-            if (notification.tenant_id) {
-                statsData.tenant_id = notification.tenant_id;
+            // ===== STEP 4: 送信結果に応じてステータスを更新 =====
+            if (successCount > 0) {
+                await supabaseAdmin
+                    .from('notifications')
+                    .update({ sent: true, status: 'sent' })
+                    .eq('id', notification.id);
+                
+                // notification_stats の初期化（送信成功時のみ）
+                const statsData = {
+                    notification_id: notification.id,
+                    notification_type: 'scheduled',
+                    total_sent: successCount,
+                    updated_at: new Date().toISOString()
+                };
+                
+                // tenant_idが存在する場合は設定
+                if (notification.tenant_id) {
+                    statsData.tenant_id = notification.tenant_id;
+                }
+                
+                await supabaseAdmin
+                    .from('notification_stats')
+                    .upsert(statsData, {
+                        onConflict: 'notification_id'
+                    });
+            } else {
+                // 送信数が0の場合は「送信失敗」として記録
+                await supabaseAdmin
+                    .from('notifications')
+                    .update({ sent: false, status: 'failed' })
+                    .eq('id', notification.id);
             }
-            
-            await supabaseAdmin
-                .from('notification_stats')
-                .upsert(statsData, {
-                    onConflict: 'notification_id'
-                });
 
             results.push({
                 id: notification.id,

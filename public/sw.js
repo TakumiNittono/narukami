@@ -155,6 +155,8 @@ self.addEventListener('notificationclick', (event) => {
 // トラッキングイベントを送信するヘルパー関数
 async function trackEvent(eventType, data) {
     try {
+        console.log(`[SW] Tracking ${eventType} event:`, data);
+        
         const response = await fetch('/api/track', {
             method: 'POST',
             headers: {
@@ -167,7 +169,11 @@ async function trackEvent(eventType, data) {
         });
         
         if (!response.ok) {
-            console.warn(`[SW] Track ${eventType} failed:`, response.status);
+            const errorText = await response.text();
+            console.warn(`[SW] Track ${eventType} failed:`, response.status, errorText);
+        } else {
+            const result = await response.json();
+            console.log(`[SW] Track ${eventType} success:`, result);
         }
     } catch (err) {
         console.error(`[SW] Track ${eventType} error:`, err);

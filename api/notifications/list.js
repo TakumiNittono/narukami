@@ -121,7 +121,7 @@ async function handleSendNow(req, res) {
         if (!targetUsers || targetUsers.length === 0) {
             await supabaseAdmin
                 .from('notifications')
-                .update({ sent: true, status: 'sent' })
+                .update({ sent: false, status: 'no_target_users' })
                 .eq('id', notification_id);
             return res.status(200).json({ 
                 status: 'ok', 
@@ -185,30 +185,38 @@ async function handleSendNow(req, res) {
 
         await Promise.all(sendPromises);
 
-        // 送信済みに更新
-        await supabaseAdmin
-            .from('notifications')
-            .update({ sent: true, status: 'sent' })
-            .eq('id', notification_id);
-        
-        // notification_stats の初期化
-        const statsData = {
-            notification_id: notification.id,
-            notification_type: 'scheduled',
-            total_sent: successCount,
-            updated_at: new Date().toISOString()
-        };
-        
-        // tenant_idが存在する場合は設定
-        if (notification.tenant_id) {
-            statsData.tenant_id = notification.tenant_id;
+        // 送信結果に応じてステータスを更新
+        if (successCount > 0) {
+            await supabaseAdmin
+                .from('notifications')
+                .update({ sent: true, status: 'sent' })
+                .eq('id', notification_id);
+            
+            // notification_stats の初期化（送信成功時のみ）
+            const statsData = {
+                notification_id: notification.id,
+                notification_type: 'scheduled',
+                total_sent: successCount,
+                updated_at: new Date().toISOString()
+            };
+            
+            // tenant_idが存在する場合は設定
+            if (notification.tenant_id) {
+                statsData.tenant_id = notification.tenant_id;
+            }
+            
+            await supabaseAdmin
+                .from('notification_stats')
+                .upsert(statsData, {
+                    onConflict: 'notification_id'
+                });
+        } else {
+            // 送信数が0の場合は「送信失敗」として記録
+            await supabaseAdmin
+                .from('notifications')
+                .update({ sent: false, status: 'failed' })
+                .eq('id', notification_id);
         }
-        
-        await supabaseAdmin
-            .from('notification_stats')
-            .upsert(statsData, {
-                onConflict: 'notification_id'
-            });
 
         return res.status(200).json({
             status: 'ok',

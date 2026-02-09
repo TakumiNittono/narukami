@@ -34,10 +34,18 @@ async function handleList(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { data: sequences } = await supabaseAdmin
+    const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id) : null;
+    
+    let sequencesQuery = supabaseAdmin
         .from('step_sequences')
         .select('*')
         .order('created_at', { ascending: false });
+    
+    if (tenantId) {
+        sequencesQuery = sequencesQuery.eq('tenant_id', tenantId);
+    }
+    
+    const { data: sequences } = await sequencesQuery;
 
     const sequencesWithSteps = await Promise.all(
         sequences.map(async (seq) => {
@@ -62,7 +70,7 @@ async function handleCreate(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { name, description, is_active, steps } = req.body;
+    const { name, description, is_active, steps, tenant_id } = req.body;
 
     if (!name || !steps || !Array.isArray(steps) || steps.length === 0) {
         return res.status(400).json({
@@ -103,13 +111,19 @@ async function handleCreate(req, res) {
         }
     }
 
+    const insertData = {
+        name,
+        description: description || '',
+        is_active: is_active !== undefined ? is_active : true
+    };
+    
+    if (tenant_id) {
+        insertData.tenant_id = tenant_id;
+    }
+    
     const { data: sequence } = await supabaseAdmin
         .from('step_sequences')
-        .insert({
-            name,
-            description: description || '',
-            is_active: is_active !== undefined ? is_active : true
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -201,7 +215,9 @@ async function handleStatus(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { data: progress } = await supabaseAdmin
+    const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id) : null;
+    
+    let progressQuery = supabaseAdmin
         .from('user_step_progress')
         .select(`
             id,
@@ -211,11 +227,18 @@ async function handleStatus(req, res) {
             next_notification_at,
             completed,
             created_at,
-            step_sequences!inner(name, is_active),
-            users!inner(id)
+            step_sequences!inner(name, is_active, tenant_id),
+            users!inner(id, tenant_id)
         `)
-        .eq('completed', false)
+        .eq('completed', false);
+    
+    const { data: allProgress } = await progressQuery
         .order('next_notification_at', { ascending: true });
+    
+    // tenant_idでフィルタリング（指定されている場合、JavaScriptでフィルタリング）
+    const progress = tenantId 
+        ? (allProgress || []).filter(p => p.users?.tenant_id === tenantId)
+        : (allProgress || []);
 
     const now = new Date().toISOString();
     const overdue = progress?.filter(p => p.next_notification_at <= now) || [];
