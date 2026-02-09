@@ -168,6 +168,7 @@
                         ${stepsHtml}
                     </div>
                     <div class="sequence-actions">
+                        <a href="/admin/sequences/edit?id=${sequence.id}" class="btn-small btn-edit" style="background: #4A90D9; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block;">編集</a>
                         <button class="btn-small btn-toggle" data-id="${sequence.id}" data-active="${sequence.is_active}">
                             ${sequence.is_active ? '無効化' : '有効化'}
                         </button>

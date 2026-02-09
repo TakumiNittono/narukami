@@ -7,13 +7,17 @@ export default async function handler(req, res) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 
-    const action = req.query.action || (req.method === 'GET' ? 'list' : req.body.id ? (req.body.is_active !== undefined ? 'toggle' : 'delete') : 'create');
+    const action = req.query.action || (req.method === 'GET' ? 'list' : req.body.id ? (req.body.is_active !== undefined ? 'toggle' : req.body.name ? 'update' : 'delete') : 'create');
 
     try {
         if (action === 'list') {
             return await handleList(req, res);
         } else if (action === 'create') {
             return await handleCreate(req, res);
+        } else if (action === 'get') {
+            return await handleGet(req, res);
+        } else if (action === 'update') {
+            return await handleUpdate(req, res);
         } else if (action === 'toggle') {
             return await handleToggle(req, res);
         } else if (action === 'delete') {
@@ -160,6 +164,170 @@ async function handleCreate(req, res) {
         message: 'Step sequence created',
         data: {
             sequence,
+            steps: insertedSteps
+        }
+    });
+}
+
+async function handleGet(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ status: 'error', message: 'Method not allowed' });
+    }
+
+    const id = req.query.id;
+    const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id) : null;
+
+    if (!id) {
+        return res.status(400).json({ status: 'error', message: 'id is required' });
+    }
+
+    let sequenceQuery = supabaseAdmin
+        .from('step_sequences')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const { data: sequence, error: seqError } = await sequenceQuery;
+
+    if (seqError || !sequence) {
+        return res.status(404).json({ status: 'error', message: 'Sequence not found' });
+    }
+
+    // tenant_idでフィルタリング（指定されている場合）
+    if (tenantId !== null && !isNaN(tenantId) && sequence.tenant_id !== tenantId) {
+        return res.status(403).json({ status: 'error', message: 'Access denied' });
+    }
+
+    // ステップを取得
+    const { data: steps } = await supabaseAdmin
+        .from('step_notifications')
+        .select('*')
+        .eq('sequence_id', sequence.id)
+        .order('step_order', { ascending: true });
+
+    return res.status(200).json({
+        status: 'ok',
+        data: {
+            ...sequence,
+            steps: steps || []
+        }
+    });
+}
+
+async function handleUpdate(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ status: 'error', message: 'Method not allowed' });
+    }
+
+    const { id, name, description, is_active, steps, tenant_id } = req.body;
+
+    if (!id || !name || !steps || !Array.isArray(steps) || steps.length === 0) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'id, name and steps (array) are required'
+        });
+    }
+
+    // 既存のシーケンスを確認
+    const { data: existingSequence, error: checkError } = await supabaseAdmin
+        .from('step_sequences')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (checkError || !existingSequence) {
+        return res.status(404).json({ status: 'error', message: 'Sequence not found' });
+    }
+
+    // tenant_idでアクセス制御（指定されている場合）
+    if (tenant_id !== null && !isNaN(tenant_id) && existingSequence.tenant_id !== tenant_id) {
+        return res.status(403).json({ status: 'error', message: 'Access denied' });
+    }
+
+    // バリデーション
+    if (name.length > 200) {
+        return res.status(400).json({ status: 'error', message: 'Name too long (max 200)' });
+    }
+
+    for (const step of steps) {
+        if (!step.title || !step.body || !step.delay_type || step.step_order === undefined) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Each step must have title, body, delay_type, and step_order'
+            });
+        }
+
+        if (step.title.length > 100 || step.body.length > 500) {
+            return res.status(400).json({ status: 'error', message: 'Step title/body too long' });
+        }
+
+        const validDelayTypes = ['immediate', 'minutes', 'hours', 'days', 'scheduled'];
+        if (!validDelayTypes.includes(step.delay_type)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid delay_type'
+            });
+        }
+
+        if (step.delay_type === 'scheduled' && !step.scheduled_time) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'scheduled_time is required when delay_type is "scheduled"'
+            });
+        }
+    }
+
+    // シーケンスを更新
+    const updateData = {
+        name,
+        description: description || '',
+        is_active: is_active !== undefined ? is_active : existingSequence.is_active,
+        updated_at: new Date().toISOString()
+    };
+
+    const { data: updatedSequence, error: updateError } = await supabaseAdmin
+        .from('step_sequences')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (updateError) {
+        throw updateError;
+    }
+
+    // 既存のステップを削除
+    await supabaseAdmin
+        .from('step_notifications')
+        .delete()
+        .eq('sequence_id', id);
+
+    // 新しいステップを挿入
+    const stepsToInsert = steps.map(step => ({
+        sequence_id: id,
+        step_order: step.step_order,
+        title: step.title,
+        body: step.body,
+        url: step.url || '',
+        delay_type: step.delay_type,
+        delay_value: step.delay_value || 0,
+        scheduled_time: step.scheduled_time || null
+    }));
+
+    const { data: insertedSteps, error: stepsError } = await supabaseAdmin
+        .from('step_notifications')
+        .insert(stepsToInsert)
+        .select();
+
+    if (stepsError) {
+        throw stepsError;
+    }
+
+    return res.status(200).json({
+        status: 'ok',
+        message: 'Sequence updated',
+        data: {
+            sequence: updatedSequence,
             steps: insertedSteps
         }
     });

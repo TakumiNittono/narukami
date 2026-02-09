@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ステップ配信編集 - Narukami 管理画面</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <h1>Narukami 管理画面</h1>
+            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
+            <button id="loginButton" class="btn-primary">ログイン</button>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- 編集画面 -->
+    <div id="editScreen" class="create-screen" style="display: none;">
+        <header class="header">
+            <h1>ステップ配信編集</h1>
+            <div style="display: flex; gap: 10px;">
+                <a href="/admin/sequences" class="btn-secondary">戻る</a>
+            </div>
+        </header>
+
+        <div class="container">
+            <form id="editForm" class="create-form">
+                <!-- 基本情報 -->
+                <div class="form-group">
+                    <label for="name">シーケンス名 <span class="required">*</span></label>
+                    <input type="text" id="name" name="name" required maxlength="200" class="form-input" placeholder="例: 新規登録ウェルカムシリーズ">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">説明</label>
+                    <textarea id="description" name="description" rows="3" class="form-textarea" placeholder="このステップ配信の目的や概要を入力してください"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="is_active" name="is_active">
+                        有効化する
+                    </label>
+                </div>
+
+                <!-- ステップビルダー -->
+                <div class="step-builder">
+                    <h3>ステップ設定</h3>
+                    <div id="stepsContainer"></div>
+                    <button type="button" id="addStepBtn" class="btn-add-step">+ ステップを追加</button>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">更新する</button>
+                    <a href="/admin/sequences" class="btn-secondary">キャンセル</a>
+                </div>
+
+                <div id="formError" class="error-message" style="display: none;"></div>
+                <div id="formSuccess" class="success-message" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/admin/admin.js"></script>
+    <script>
+        let stepCounter = 0;
+        let sequenceId = null;
+        // currentTenantIdはadmin.jsで既に宣言されているので、ここでは再宣言しない
+
+        // URLパラメータからシーケンスIDを取得
+        function getSequenceIdFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        // テナントIDを取得（ドメインから）
+        async function loadTenantId() {
+            try {
+                const domain = window.location.hostname;
+                const password = localStorage.getItem('adminPassword');
+                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
+                    headers: { 'Authorization': `Bearer ${password}` }
+                });
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result.status === 'ok' && result.data.tenant) {
+                        // admin.jsで宣言されたcurrentTenantIdを更新
+                        if (typeof window.currentTenantId !== 'undefined') {
+                            window.currentTenantId = result.data.tenant.id;
+                        } else {
+                            // admin.jsが読み込まれていない場合のフォールバック
+                            currentTenantId = result.data.tenant.id;
+                        }
+                        console.log('Tenant ID loaded:', currentTenantId || window.currentTenantId);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load tenant ID:', err);
+            }
+        }
+
+        // シーケンスデータを読み込む
+        async function loadSequence() {
+            try {
+                const tenantId = currentTenantId || window.currentTenantId;
+                const url = tenantId 
+                    ? `/api/step-sequences?action=get&id=${sequenceId}&tenant_id=${tenantId}`
+                    : `/api/step-sequences?action=get&id=${sequenceId}`;
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.status === 'ok' && result.data) {
+                    const seq = result.data;
+                    
+                    // フォームにデータを設定
+                    document.getElementById('name').value = seq.name || '';
+                    document.getElementById('description').value = seq.description || '';
+                    document.getElementById('is_active').checked = seq.is_active || false;
+
+                    // ステップを追加
+                    if (seq.steps && seq.steps.length > 0) {
+                        seq.steps.forEach((step, index) => {
+                            addStep();
+                            const stepNum = index + 1;
+                            document.querySelector(`input[name="step_title_${stepNum}"]`).value = step.title || '';
+                            document.querySelector(`textarea[name="step_body_${stepNum}"]`).value = step.body || '';
+                            document.querySelector(`input[name="step_url_${stepNum}"]`).value = step.url || '';
+                            document.querySelector(`input[name="delay_type_${stepNum}"][value="${step.delay_type}"]`).checked = true;
+                            selectTiming(stepNum, step.delay_type);
+                            if (step.delay_value) {
+                                document.querySelector(`input[name="delay_value_${stepNum}"]`).value = step.delay_value;
+                            }
+                            if (step.scheduled_time) {
+                                document.querySelector(`input[name="scheduled_time_${stepNum}"]`).value = step.scheduled_time;
+                            }
+                        });
+                    } else {
+                        addStep();
+                    }
+                } else {
+                    showError('シーケンスデータの取得に失敗しました');
+                }
+            } catch (error) {
+                console.error('Load sequence error:', error);
+                showError('エラーが発生しました: ' + error.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            await loadTenantId();
+            
+            sequenceId = getSequenceIdFromUrl();
+            if (!sequenceId) {
+                showError('シーケンスIDが指定されていません');
+                return;
+            }
+
+            document.getElementById('editScreen').style.display = 'block';
+            initForm();
+            await loadSequence();
+        });
+
+        function initForm() {
+            // ステップ追加ボタン
+            document.getElementById('addStepBtn').addEventListener('click', addStep);
+
+            // フォーム送信
+            document.getElementById('editForm').addEventListener('submit', handleSubmit);
+        }
+
+        function addStep() {
+            stepCounter++;
+            const container = document.getElementById('stepsContainer');
+            
+            const stepHtml = `
+                <div class="step-item-form" data-step="${stepCounter}">
+                    <div class="step-header">
+                        <div class="step-number-badge">${stepCounter}</div>
+                        ${stepCounter > 1 ? '<button type="button" class="step-remove" onclick="removeStep(this)">削除</button>' : ''}
+                    </div>
+
+                    <div class="form-group">
+                        <label>タイトル <span class="required">*</span></label>
+                        <input type="text" name="step_title_${stepCounter}" required maxlength="100" class="form-input" placeholder="通知のタイトル">
+                    </div>
+
+                    <div class="form-group">
+                        <label>本文 <span class="required">*</span></label>
+                        <textarea name="step_body_${stepCounter}" required maxlength="500" rows="3" class="form-textarea" placeholder="通知の本文"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>タップ時のURL（省略可）</label>
+                        <input type="url" name="step_url_${stepCounter}" class="form-input" placeholder="https://example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label>配信タイミング <span class="required">*</span></label>
+                        <div class="timing-selector">
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'immediate')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="immediate">
+                                <strong>即時配信</strong><br>
+                                <small>登録直後に配信</small>
+                            </label>
+
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'minutes')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="minutes">
+                                <strong>n分後</strong><br>
+                                <small>指定時間後に配信</small>
+                            </label>
+
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'hours')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="hours">
+                                <strong>n時間後</strong><br>
+                                <small>指定時間後に配信</small>
+                            </label>
+
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'days')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="days">
+                                <strong>n日後</strong><br>
+                                <small>指定日数後に配信</small>
+                            </label>
+
+                            <label class="timing-option" onclick="selectTiming(${stepCounter}, 'scheduled')">
+                                <input type="radio" name="delay_type_${stepCounter}" value="scheduled">
+                                <strong>時刻指定</strong><br>
+                                <small>毎日指定時刻に配信</small>
+                            </label>
+                        </div>
+
+                        <div id="timing_value_${stepCounter}" class="timing-value-input">
+                            <label>待機時間</label>
+                            <input type="number" name="delay_value_${stepCounter}" min="1" class="form-input" placeholder="数値を入力">
+                        </div>
+
+                        <div id="timing_scheduled_${stepCounter}" class="timing-value-input">
+                            <label>配信時刻</label>
+                            <input type="time" name="scheduled_time_${stepCounter}" class="form-input">
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', stepHtml);
+        }
+
+        function removeStep(btn) {
+            btn.closest('.step-item-form').remove();
+            renumberSteps();
+        }
+
+        function renumberSteps() {
+            const steps = document.querySelectorAll('.step-item-form');
+            steps.forEach((step, index) => {
+                const badge = step.querySelector('.step-number-badge');
+                if (badge) {
+                    badge.textContent = index + 1;
+                }
+            });
+        }
+
+        function selectTiming(stepNum, type) {
+            // ラジオボタンを選択
+            const radio = document.querySelector(`input[name="delay_type_${stepNum}"][value="${type}"]`);
+            if (radio) radio.checked = true;
+
+            // 全ての timing-option から selected クラスを削除
+            const container = document.querySelector(`[data-step="${stepNum}"]`);
+            if (container) {
+                container.querySelectorAll('.timing-option').forEach(opt => opt.classList.remove('selected'));
+                
+                // 選択された timing-option に selected クラスを追加
+                if (radio && radio.closest('.timing-option')) {
+                    radio.closest('.timing-option').classList.add('selected');
+                }
+            }
+
+            // 入力フィールドの表示/非表示
+            const valueInput = document.getElementById(`timing_value_${stepNum}`);
+            const scheduledInput = document.getElementById(`timing_scheduled_${stepNum}`);
+
+            if (valueInput) valueInput.classList.remove('visible');
+            if (scheduledInput) scheduledInput.classList.remove('visible');
+
+            if (type === 'minutes' || type === 'hours' || type === 'days') {
+                if (valueInput) valueInput.classList.add('visible');
+            } else if (type === 'scheduled') {
+                if (scheduledInput) scheduledInput.classList.add('visible');
+            }
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const name = formData.get('name');
+            const description = formData.get('description');
+            const is_active = document.getElementById('is_active').checked;
+
+            // ステップデータを収集
+            const steps = [];
+            const stepElements = document.querySelectorAll('.step-item-form');
+
+            for (let i = 0; i < stepElements.length; i++) {
+                const stepNum = stepElements[i].dataset.step;
+                const title = formData.get(`step_title_${stepNum}`);
+                const body = formData.get(`step_body_${stepNum}`);
+                const url = formData.get(`step_url_${stepNum}`) || '';
+                const delay_type = formData.get(`delay_type_${stepNum}`);
+                const delay_value = parseInt(formData.get(`delay_value_${stepNum}`)) || 0;
+                const scheduled_time = formData.get(`scheduled_time_${stepNum}`) || null;
+
+                if (!title || !body || !delay_type) {
+                    showError(`ステップ${i + 1}の必須項目が入力されていません`);
+                    return;
+                }
+
+                steps.push({
+                    step_order: i + 1,
+                    title,
+                    body,
+                    url,
+                    delay_type,
+                    delay_value,
+                    scheduled_time
+                });
+            }
+
+            if (steps.length === 0) {
+                showError('少なくとも1つのステップを追加してください');
+                return;
+            }
+
+            try {
+                const tenantId = currentTenantId || window.currentTenantId;
+                const payload = {
+                    id: sequenceId,
+                    name,
+                    description,
+                    is_active,
+                    steps
+                };
+                if (tenantId) {
+                    payload.tenant_id = tenantId;
+                }
+                const response = await fetch('/api/step-sequences?action=update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'ok') {
+                    showSuccess('ステップ配信を更新しました');
+                    setTimeout(() => {
+                        window.location.href = '/admin/sequences';
+                    }, 1000);
+                } else {
+                    showError(result.message || '更新に失敗しました');
+                }
+            } catch (error) {
+                showError('エラーが発生しました: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('formError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('formSuccess').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('formSuccess');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            document.getElementById('formError').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
