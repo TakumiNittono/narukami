@@ -56,7 +56,7 @@
     <script src="/admin/admin.js"></script>
     <script>
         // テナントIDを取得（ドメインから）
-        let currentTenantId = null;
+        // currentTenantIdはadmin.jsで既に宣言されているので、ここでは再宣言しない
         async function loadTenantId() {
             try {
                 const domain = window.location.hostname;
@@ -67,8 +67,14 @@
                 if (res.ok) {
                     const result = await res.json();
                     if (result.status === 'ok' && result.data.tenant) {
-                        currentTenantId = result.data.tenant.id;
-                        console.log('Tenant ID loaded:', currentTenantId);
+                        // admin.jsで宣言されたcurrentTenantIdを更新
+                        if (typeof window.currentTenantId !== 'undefined') {
+                            window.currentTenantId = result.data.tenant.id;
+                        } else {
+                            // admin.jsが読み込まれていない場合のフォールバック
+                            currentTenantId = result.data.tenant.id;
+                        }
+                        console.log('Tenant ID loaded:', currentTenantId || window.currentTenantId);
                     }
                 }
             } catch (err) {
@@ -79,6 +85,10 @@
         document.addEventListener('DOMContentLoaded', async () => {
             await checkAuth();
             await loadTenantId();
+            // currentTenantIdを確実に取得
+            if (!currentTenantId && window.currentTenantId) {
+                currentTenantId = window.currentTenantId;
+            }
             document.getElementById('mainScreen').style.display = 'block';
             
             // 手動実行ボタンのイベントリスナーを設定
@@ -96,8 +106,10 @@
             const listDiv = document.getElementById('sequencesList');
             
             try {
-                const url = currentTenantId 
-                    ? `/api/step-sequences?action=list&tenant_id=${currentTenantId}`
+                // currentTenantIdを確実に取得
+                const tenantId = currentTenantId || window.currentTenantId;
+                const url = tenantId 
+                    ? `/api/step-sequences?action=list&tenant_id=${tenantId}`
                     : '/api/step-sequences?action=list';
                 const response = await fetch(url, {
                     headers: {
@@ -195,9 +207,10 @@
 
         async function toggleSequence(id, isActive) {
             try {
+                const tenantId = currentTenantId || window.currentTenantId;
                 const payload = { id, is_active: isActive };
-                if (currentTenantId) {
-                    payload.tenant_id = currentTenantId;
+                if (tenantId) {
+                    payload.tenant_id = tenantId;
                 }
                 const response = await fetch(`/api/step-sequences?action=toggle`, {
                     method: 'POST',
@@ -221,9 +234,10 @@
 
         async function deleteSequence(id) {
             try {
+                const tenantId = currentTenantId || window.currentTenantId;
                 const payload = { id };
-                if (currentTenantId) {
-                    payload.tenant_id = currentTenantId;
+                if (tenantId) {
+                    payload.tenant_id = tenantId;
                 }
                 const response = await fetch(`/api/step-sequences?action=delete`, {
                     method: 'POST',
@@ -249,8 +263,9 @@
             const statusDiv = document.getElementById('stepStatus');
             
             try {
-                const url = currentTenantId 
-                    ? `/api/step-sequences?action=status&tenant_id=${currentTenantId}`
+                const tenantId = currentTenantId || window.currentTenantId;
+                const url = tenantId 
+                    ? `/api/step-sequences?action=status&tenant_id=${tenantId}`
                     : '/api/step-sequences?action=status';
                 const response = await fetch(url, {
                     headers: {
@@ -294,9 +309,10 @@
             btn.textContent = '実行中...';
             
             try {
+                const tenantId = currentTenantId || window.currentTenantId;
                 const payload = {};
-                if (currentTenantId) {
-                    payload.tenant_id = currentTenantId;
+                if (tenantId) {
+                    payload.tenant_id = tenantId;
                 }
                 const response = await fetch('/api/cron/send-step-notifications', {
                     method: 'POST',

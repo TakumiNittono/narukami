@@ -7,7 +7,7 @@
     },
     {
       "path": "/api/cron/send-step-notifications",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 1 * * *"
     }
   ],
   "rewrites": [
