@@ -565,12 +565,13 @@
                 const container = document.getElementById('recentNotifications');
                 
                 // 通知一覧とパフォーマンスデータを取得
+                const password = getAdminPassword();
                 const [notificationsRes, analyticsRes] = await Promise.all([
                     fetch(`/api/notifications/list?tenant_id=${tenantId}`, {
-                        headers: { 'Authorization': `Bearer ${ADMIN_PASSWORD}` }
+                        headers: { 'Authorization': `Bearer ${password}` }
                     }),
                     fetch(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`, {
-                        headers: { 'Authorization': `Bearer ${ADMIN_PASSWORD}` }
+                        headers: { 'Authorization': `Bearer ${password}` }
                     })
                 ]);
                 
@@ -711,8 +712,7 @@
         }
 
         // グラフを読み込み
-        let usersChart = null;
-        let notificationsChart = null;
+        // usersChartとnotificationsChartはadmin.jsで既に宣言されているため、再宣言しない
 
         async function loadChart(period) {
             if (!tenantId) {
@@ -722,13 +722,14 @@
             
             try {
                 // ユーザー推移グラフ
+                const password = getAdminPassword();
                 const trendsRes = await fetch(`/api/analytics?type=trends&metric=users&period=${period}&tenant_id=${tenantId}`, {
-                    headers: { 'Authorization': `Bearer ${ADMIN_PASSWORD}` }
+                    headers: { 'Authorization': `Bearer ${password}` }
                 });
                 
                 // 通知パフォーマンスグラフ
                 const notificationsRes = await fetch(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`, {
-                    headers: { 'Authorization': `Bearer ${ADMIN_PASSWORD}` }
+                    headers: { 'Authorization': `Bearer ${password}` }
                 });
                 
                 if (trendsRes.ok) {
