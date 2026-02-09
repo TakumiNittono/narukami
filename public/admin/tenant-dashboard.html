@@ -19,6 +19,7 @@
             max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
+            display: none; /* 認証後に表示 */
         }
         
         .tenant-header {
@@ -249,6 +250,9 @@
                     <span class="plan-badge" id="tenantPlan"></span>
                 </div>
             </div>
+            <div>
+                <button onclick="logout()" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">ログアウト</button>
+            </div>
         </div>
 
         <!-- KPIダッシュボード -->
@@ -350,31 +354,62 @@
         </div>
     </div>
 
+    <!-- ログイン画面 -->
+    <div id="loginScreen" class="login-screen" style="display: none;">
+        <div class="login-box">
+            <h1>Narukami 管理画面</h1>
+            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
+            <button id="loginButton" class="btn-primary">ログイン</button>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
+
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/admin/admin.js"></script>
     <script>
         // ドメインからテナントを識別
         let currentTenant = null;
         let tenantId = null;
-        const ADMIN_PASSWORD = localStorage.getItem('adminPassword') || prompt('管理者パスワードを入力してください:');
-        if (ADMIN_PASSWORD) {
-            localStorage.setItem('adminPassword', ADMIN_PASSWORD);
-        }
 
         // 現在のドメインを取得
         function getCurrentDomain() {
             return window.location.hostname;
         }
 
+        // パスワードを取得（認証チェック済み）
+        function getAdminPassword() {
+            return localStorage.getItem('adminPassword');
+        }
+
+        // admin.jsの表示関数をオーバーライド（tenant-dashboard用）
+        const originalShowLoginScreen = window.showLoginScreen;
+        const originalShowMainScreen = window.showMainScreen;
+
+        window.showLoginScreen = function() {
+            const loginScreen = document.getElementById('loginScreen');
+            const dashboard = document.querySelector('.tenant-dashboard');
+            if (loginScreen) loginScreen.style.display = 'flex';
+            if (dashboard) dashboard.style.display = 'none';
+        };
+
+        window.showMainScreen = function() {
+            const loginScreen = document.getElementById('loginScreen');
+            const dashboard = document.querySelector('.tenant-dashboard');
+            if (loginScreen) loginScreen.style.display = 'none';
+            if (dashboard) dashboard.style.display = 'block';
+        };
+
         // テナント情報を取得
         async function loadTenantInfo() {
             try {
                 const domain = getCurrentDomain();
+                const password = getAdminPassword();
                 console.log('Loading tenant info for domain:', domain);
                 
                 const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
                     headers: {
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                        'Authorization': `Bearer ${password}`
                     }
                 });
                 
@@ -447,7 +482,7 @@
                 
                 const res = await fetch(url, {
                     headers: {
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                        'Authorization': `Bearer ${getAdminPassword()}`
                     }
                 });
                 
@@ -647,7 +682,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                        'Authorization': `Bearer ${getAdminPassword()}`
                     },
                     body: JSON.stringify({ notification_id: notificationId })
                 });
@@ -775,13 +810,25 @@
 
         // 初期化
         async function init() {
+            // 認証チェック
+            const isAuthenticated = await checkAuth();
+            if (!isAuthenticated) {
+                return; // ログイン画面が表示される
+            }
+
+            // 認証済みの場合のみダッシュボードを表示
+            document.querySelector('.tenant-dashboard').style.display = 'block';
+            
             await loadTenantInfo();
             await loadKPIs();
             await loadRecentNotifications();
             await loadChart('30d');
         }
 
-        init();
+        // ページ読み込み時に初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+        });
     </script>
 </body>
 </html>
