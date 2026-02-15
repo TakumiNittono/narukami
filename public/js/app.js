@@ -136,7 +136,9 @@ async function requestNotificationPermission() {
         }
 
         button.disabled = true;
-        button.textContent = '設定中...';
+        button.querySelector('.btn-text').style.display = 'none';
+        button.querySelector('.btn-loader').style.display = 'inline-flex';
+        statusMessage.style.display = 'none';
 
         // Service Worker登録
         const registration = await registerServiceWorker();
@@ -187,7 +189,8 @@ async function requestNotificationPermission() {
     } catch (error) {
         console.error('通知設定エラー:', error);
         button.disabled = false;
-        button.textContent = '通知を受け取る 🔔';
+        button.querySelector('.btn-text').style.display = 'inline-flex';
+        button.querySelector('.btn-loader').style.display = 'none';
         
         // エラーメッセージをユーザーフレンドリーに表示
         let errorMsg = error.message || '通知の設定に失敗しました。もう一度お試しください。';
@@ -215,7 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 既に通知許可済みかチェック
     if (Notification.permission === 'granted') {
-        button.textContent = '登録済みです ✓';
+        button.querySelector('.btn-text').textContent = '登録済みです ✓';
+        button.querySelector('.btn-loader').style.display = 'none';
         button.disabled = true;
     }
 
