@@ -1,4 +1,14 @@
 import { supabaseAdmin } from '../lib/supabase.js';
+import webpush from 'web-push';
+
+// Web Push の VAPID キーを設定
+if (process.env.VAPID_EMAIL && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+        'mailto:' + process.env.VAPID_EMAIL,
+        process.env.VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+}
 
 export default async function handler(req, res) {
     // CORS
@@ -145,7 +155,7 @@ export default async function handler(req, res) {
 
         // 新規ユーザーの場合、有効なステップ配信シーケンスに登録
         if (isNewUser && userId) {
-            await enrollUserInStepSequences(userId, tenantId);
+            await enrollUserInStepSequences(userId, tenantId, subscription);
         }
 
         return res.status(200).json({ status: 'ok', message: 'Subscription registered' });
@@ -162,8 +172,9 @@ export default async function handler(req, res) {
 
 /**
  * 新規ユーザーを有効なステップ配信シーケンスに登録する
+ * 即時配信のステップは登録時にすぐ送信（Cron待ちの最大5分遅延を解消）
  */
-async function enrollUserInStepSequences(userId, tenantId) {
+async function enrollUserInStepSequences(userId, tenantId, subscription) {
     try {
         // 有効なシーケンスを取得（テナントIDでフィルタリング）
         let seqQuery = supabaseAdmin
@@ -205,21 +216,113 @@ async function enrollUserInStepSequences(userId, tenantId) {
             const nextNotificationAt = calculateNextNotificationTime(firstStep);
 
             // 進捗レコードを作成
-            const { error: progressError } = await supabaseAdmin
+            const { data: progressRecord, error: progressError } = await supabaseAdmin
                 .from('user_step_progress')
                 .insert({
                     user_id: userId,
                     sequence_id: sequence.id,
                     current_step: 0, // 0 = 未開始
                     next_notification_at: nextNotificationAt
-                });
+                })
+                .select('id')
+                .single();
 
             if (progressError) {
                 console.error(`Failed to create progress for sequence ${sequence.id}:`, progressError);
+                continue;
+            }
+
+            // 即時配信の場合は登録直後に送信（Cronの5分待ちを回避）
+            if (firstStep.delay_type === 'immediate' && subscription) {
+                await sendImmediateStep(userId, sequence.id, progressRecord.id, firstStep, subscription);
             }
         }
     } catch (err) {
         console.error('Failed to enroll user in step sequences:', err);
+    }
+}
+
+/**
+ * 即時ステップを登録直後に送信
+ */
+async function sendImmediateStep(userId, sequenceId, progressId, stepNotification, subscription) {
+    try {
+        if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+            console.log('[Register] VAPID keys not configured, skipping immediate send');
+            return;
+        }
+
+        const payload = JSON.stringify({
+            title: stepNotification.title,
+            body: stepNotification.body,
+            url: stepNotification.url || '/',
+            icon: '/icons/icon-192.png',
+            badge: '/icons/icon-192.png',
+            notification_id: stepNotification.id,
+            notification_type: 'step',
+            user_id: userId
+        });
+
+        await webpush.sendNotification(subscription, payload);
+
+        // 送信ログを記録
+        await supabaseAdmin
+            .from('step_notification_logs')
+            .insert({
+                user_id: userId,
+                sequence_id: sequenceId,
+                step_notification_id: stepNotification.id,
+                step_order: 1,
+                success: true
+            });
+
+        // 次のステップがあるか確認して進捗を更新
+        const { data: nextStep, error: nextStepError } = await supabaseAdmin
+            .from('step_notifications')
+            .select('*')
+            .eq('sequence_id', sequenceId)
+            .eq('step_order', 2)
+            .single();
+
+        if (nextStepError || !nextStep) {
+            await supabaseAdmin
+                .from('user_step_progress')
+                .update({
+                    current_step: 1,
+                    completed: true,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', progressId);
+        } else {
+            const nextNotificationAt = calculateNextNotificationTime(nextStep);
+            await supabaseAdmin
+                .from('user_step_progress')
+                .update({
+                    current_step: 1,
+                    next_notification_at: nextNotificationAt,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', progressId);
+        }
+
+        console.log(`[Register] Sent immediate step 1 to user ${userId}`);
+    } catch (err) {
+        console.error(`[Register] Failed to send immediate step to user ${userId}:`, err);
+        // 失敗時はログのみ記録、進捗はCronに任せる（next_notification_at=nowのまま）
+        try {
+            await supabaseAdmin
+                .from('step_notification_logs')
+                .insert({
+                    user_id: userId,
+                    sequence_id: sequenceId,
+                    step_notification_id: stepNotification.id,
+                    step_order: 1,
+                    success: false,
+                    error_message: err.message || 'Unknown error'
+                });
+        } catch (logErr) {
+            console.error('[Register] Failed to log error:', logErr);
+        }
     }
 }
 
