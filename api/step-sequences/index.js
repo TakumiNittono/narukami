@@ -81,7 +81,18 @@ async function handleCreate(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { name, description, is_active, steps, tenant_id } = req.body;
+    // bodyのパース（Vercel環境によっては未パースの可能性）
+    let body = req.body;
+    if (typeof body === 'string' && body) {
+        try {
+            body = JSON.parse(body);
+        } catch (e) {
+            body = {};
+        }
+    }
+    body = body || {};
+
+    const { name, description, is_active, steps, tenant_id } = body;
 
     if (!name || !steps || !Array.isArray(steps) || steps.length === 0) {
         return res.status(400).json({
@@ -122,28 +133,30 @@ async function handleCreate(req, res) {
         }
     }
 
-    // IPアドレスとUser-Agentから管理者を識別
-    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.socket?.remoteAddress || 'Unknown';
-    const userAgent = req.headers['user-agent'] || 'Unknown';
-    const adminIdentifier = `${clientIp}-${userAgent.substring(0, 50)}`.substring(0, 200);
-    
     const insertData = {
         name,
         description: description || '',
-        is_active: is_active !== undefined ? is_active : true,
-        created_by: adminIdentifier,
-        updated_by: adminIdentifier
+        is_active: is_active !== undefined ? is_active : true
     };
     
     if (tenant_id) {
         insertData.tenant_id = tenant_id;
     }
     
-    const { data: sequence } = await supabaseAdmin
+    const { data: sequence, error: seqError } = await supabaseAdmin
         .from('step_sequences')
         .insert(insertData)
         .select()
         .single();
+
+    if (seqError || !sequence) {
+        console.error('Step sequence insert error:', seqError);
+        return res.status(500).json({
+            status: 'error',
+            message: 'Failed to create sequence',
+            detail: seqError?.message
+        });
+    }
 
     const stepsToInsert = steps.map(step => ({
         sequence_id: sequence.id,
@@ -226,7 +239,17 @@ async function handleUpdate(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { id, name, description, is_active, steps, tenant_id } = req.body;
+    let body = req.body;
+    if (typeof body === 'string' && body) {
+        try {
+            body = JSON.parse(body);
+        } catch (e) {
+            body = {};
+        }
+    }
+    body = body || {};
+
+    const { id, name, description, is_active, steps, tenant_id } = body;
 
     if (!id || !name || !steps || !Array.isArray(steps) || steps.length === 0) {
         return res.status(400).json({
@@ -284,18 +307,12 @@ async function handleUpdate(req, res) {
         }
     }
 
-    // IPアドレスとUser-Agentから管理者を識別
-    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.socket?.remoteAddress || 'Unknown';
-    const userAgent = req.headers['user-agent'] || 'Unknown';
-    const adminIdentifier = `${clientIp}-${userAgent.substring(0, 50)}`.substring(0, 200);
-    
     // シーケンスを更新
     const updateData = {
         name,
         description: description || '',
         is_active: is_active !== undefined ? is_active : existingSequence.is_active,
-        updated_at: new Date().toISOString(),
-        updated_by: adminIdentifier
+        updated_at: new Date().toISOString()
     };
 
     const { data: updatedSequence, error: updateError } = await supabaseAdmin
