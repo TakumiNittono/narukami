@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
     // CORS設定
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
@@ -26,6 +26,11 @@ export default async function handler(req, res) {
             return await handleDetail(req, res, tenantId);
         } else if (action === 'events') {
             return await handleEvents(req, res, tenantId);
+        } else if (action === 'delete') {
+            if (req.method !== 'POST') {
+                return res.status(405).json({ status: 'error', message: 'Method not allowed' });
+            }
+            return await handleDelete(req, res, tenantId);
         } else {
             return res.status(400).json({ status: 'error', message: 'Invalid action parameter' });
         }
@@ -340,5 +345,49 @@ async function handleEvents(req, res, tenantId) {
             events: eventsWithDetails,
             total: eventsWithDetails.length
         }
+    });
+}
+
+// ユーザー削除
+async function handleDelete(req, res, tenantId) {
+    const userId = parseInt(req.body?.user_id || req.query?.user_id);
+
+    if (!userId) {
+        return res.status(400).json({ status: 'error', message: 'user_id is required' });
+    }
+
+    // ユーザーが存在するか確認
+    let userQuery = supabaseAdmin
+        .from('users')
+        .select('id, tenant_id')
+        .eq('id', userId)
+        .single();
+
+    const { data: user, error: userError } = await userQuery;
+
+    if (userError || !user) {
+        return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    // テナントIDフィルタリング（マルチテナント時は自テナントのユーザーのみ削除可能）
+    if (tenantId && user.tenant_id !== tenantId) {
+        return res.status(403).json({ status: 'error', message: 'Access denied' });
+    }
+
+    // ユーザー削除（外部キーON DELETE CASCADE/SET NULLで関連データも処理される）
+    const { error: deleteError } = await supabaseAdmin
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+    if (deleteError) {
+        console.error('User delete error:', deleteError);
+        return res.status(500).json({ status: 'error', message: 'Failed to delete user' });
+    }
+
+    return res.status(200).json({
+        status: 'ok',
+        message: 'User deleted successfully',
+        data: { deleted_id: userId }
     });
 }

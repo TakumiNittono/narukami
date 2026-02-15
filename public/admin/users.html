@@ -122,6 +122,32 @@
             background: #0056b3;
         }
 
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 6px;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
+        .btn-delete:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
         .pagination {
             display: flex;
             justify-content: center;
@@ -350,7 +376,10 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>ユーザー詳細 #<span id="modalUserId"></span></h2>
-                <span class="close" onclick="closeModal()">&times;</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn-delete" id="modalDeleteBtn" style="margin: 0;">削除</button>
+                    <span class="close" onclick="closeModal()">&times;</span>
+                </div>
             </div>
             <div id="userDetailContent">
                 <div class="loading">読み込み中...</div>
@@ -362,6 +391,7 @@
     <script>
         let currentPage = 1;
         let totalPages = 1;
+        let currentDetailUserId = null;
         // currentTenantIdはadmin.jsで既に宣言されているため、再宣言しない
 
         async function loadTenantId() {
@@ -472,8 +502,9 @@
                                 ${ctr}%
                             </span>
                         </td>
-                        <td>
+                        <td class="actions-cell">
                             <button class="btn-detail" onclick="showUserDetail(${user.id})">詳細</button>
+                            <button class="btn-delete" onclick="deleteUser(${user.id})">削除</button>
                         </td>
                     </tr>
                 `;
@@ -507,7 +538,9 @@
             const userIdSpan = document.getElementById('modalUserId');
             
             modal.style.display = 'block';
+            currentDetailUserId = userId;
             userIdSpan.textContent = userId;
+            document.getElementById('modalDeleteBtn').onclick = () => deleteUser(userId);
             content.innerHTML = '<div class="loading">読み込み中...</div>';
 
             try {
@@ -610,6 +643,7 @@
 
         function closeModal() {
             document.getElementById('userDetailModal').style.display = 'none';
+            currentDetailUserId = null;
         }
 
         function getEventTypeLabel(eventType) {
@@ -622,9 +656,45 @@
         }
 
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        async function deleteUser(userId) {
+            const msg = `ユーザー #${userId} を削除しますか？\n\nこの操作は取り消せません。通知履歴・ステップ配信進捗も削除されます。`;
+            if (!confirm(msg)) return;
+
+            try {
+                const password = localStorage.getItem('adminPassword');
+                const body = JSON.stringify({ user_id: userId });
+                const url = currentTenantId
+                    ? `/api/users?action=delete&tenant_id=${currentTenantId}`
+                    : `/api/users?action=delete`;
+
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${password}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: body
+                });
+
+                const result = await res.json();
+
+                if (!res.ok || result.status !== 'ok') {
+                    throw new Error(result.message || '削除に失敗しました');
+                }
+
+                alert('ユーザーを削除しました');
+                closeModal();
+                await loadUsers(currentPage);
+            } catch (err) {
+                console.error('Error deleting user:', err);
+                alert('エラー: ' + err.message);
+            }
         }
 
         // モーダル外クリックで閉じる
