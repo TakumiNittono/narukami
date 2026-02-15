@@ -682,10 +682,16 @@
                     body: body
                 });
 
-                const result = await res.json();
+                let result;
+                try {
+                    result = await res.json();
+                } catch (parseErr) {
+                    throw new Error('サーバー応答の解析に失敗しました');
+                }
 
                 if (!res.ok || result.status !== 'ok') {
-                    throw new Error(result.message || '削除に失敗しました');
+                    const errMsg = result.detail ? `${result.message}: ${result.detail}` : (result.message || '削除に失敗しました');
+                    throw new Error(errMsg);
                 }
 
                 alert('ユーザーを削除しました');

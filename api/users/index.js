@@ -350,27 +350,42 @@ async function handleEvents(req, res, tenantId) {
 
 // ユーザー削除
 async function handleDelete(req, res, tenantId) {
-    const userId = parseInt(req.body?.user_id || req.query?.user_id);
+    // bodyのパース（Vercel環境によっては未パースの可能性）
+    let body = req.body;
+    if (typeof body === 'string' && body) {
+        try {
+            body = JSON.parse(body);
+        } catch (e) {
+            body = {};
+        }
+    }
+    body = body || {};
 
-    if (!userId) {
+    const userId = parseInt(body.user_id || req.query?.user_id);
+
+    if (!userId || isNaN(userId)) {
         return res.status(400).json({ status: 'error', message: 'user_id is required' });
     }
 
     // ユーザーが存在するか確認
-    let userQuery = supabaseAdmin
+    const { data: user, error: userError } = await supabaseAdmin
         .from('users')
         .select('id, tenant_id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-    const { data: user, error: userError } = await userQuery;
+    if (userError) {
+        console.error('User lookup error:', userError);
+        return res.status(500).json({ status: 'error', message: 'Failed to verify user', detail: userError.message });
+    }
 
-    if (userError || !user) {
+    if (!user) {
         return res.status(404).json({ status: 'error', message: 'User not found' });
     }
 
     // テナントIDフィルタリング（マルチテナント時は自テナントのユーザーのみ削除可能）
-    if (tenantId && user.tenant_id !== tenantId) {
+    // tenant_idがnullのユーザーは従来データのため許可
+    if (tenantId != null && user.tenant_id != null && Number(user.tenant_id) !== Number(tenantId)) {
         return res.status(403).json({ status: 'error', message: 'Access denied' });
     }
 
@@ -382,7 +397,11 @@ async function handleDelete(req, res, tenantId) {
 
     if (deleteError) {
         console.error('User delete error:', deleteError);
-        return res.status(500).json({ status: 'error', message: 'Failed to delete user' });
+        return res.status(500).json({
+            status: 'error',
+            message: 'Failed to delete user',
+            detail: deleteError.message
+        });
     }
 
     return res.status(200).json({
