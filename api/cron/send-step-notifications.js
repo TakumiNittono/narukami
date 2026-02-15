@@ -221,11 +221,11 @@ function calculateNextNotificationTime(step) {
             return now.toISOString();
         
         case 'hours':
-            now.setHours(now.getHours() + delayValue);
+            now.setTime(now.getTime() + delayValue * 60 * 60 * 1000);
             return now.toISOString();
         
         case 'days':
-            now.setDate(now.getDate() + delayValue);
+            now.setTime(now.getTime() + delayValue * 24 * 60 * 60 * 1000);
             return now.toISOString();
         
         case 'scheduled':

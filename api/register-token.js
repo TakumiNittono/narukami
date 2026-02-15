@@ -24,7 +24,16 @@ export default async function handler(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    const { subscription, domain } = req.body;
+    let body = req.body;
+    if (typeof body === 'string' && body) {
+        try {
+            body = JSON.parse(body);
+        } catch (e) {
+            body = {};
+        }
+    }
+    body = body || {};
+    const { subscription, domain } = body;
 
     if (!subscription) {
         return res.status(400).json({ status: 'error', message: 'Subscription is required' });
@@ -153,9 +162,12 @@ export default async function handler(req, res) {
             }
         }
 
-        // 新規ユーザーの場合、有効なステップ配信シーケンスに登録
-        if (isNewUser && userId) {
-            await enrollUserInStepSequences(userId, tenantId, subscription);
+        // 新規ユーザー、または既存ユーザーで未登録の場合にステップ配信へ登録
+        if (userId) {
+            const shouldEnroll = isNewUser || await needsStepEnrollment(userId);
+            if (shouldEnroll) {
+                await enrollUserInStepSequences(userId, tenantId, subscription);
+            }
         }
 
         return res.status(200).json({ status: 'ok', message: 'Subscription registered' });
@@ -171,26 +183,48 @@ export default async function handler(req, res) {
 }
 
 /**
+ * ユーザーがステップ配信に未登録か確認（既存ユーザーの再登録対応）
+ */
+async function needsStepEnrollment(userId) {
+    const { data, error } = await supabaseAdmin
+        .from('user_step_progress')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1);
+    return !error && (!data || data.length === 0);
+}
+
+/**
  * 新規ユーザーを有効なステップ配信シーケンスに登録する
  * 即時配信のステップは登録時にすぐ送信（Cron待ちの最大5分遅延を解消）
  */
 async function enrollUserInStepSequences(userId, tenantId, subscription) {
     try {
-        // 有効なシーケンスを取得（テナントIDでフィルタリング）
+        // 有効なシーケンスを取得（テナントIDでフィルタリング、tenant_id=nullも含む）
         let seqQuery = supabaseAdmin
             .from('step_sequences')
             .select('id')
             .eq('is_active', true);
         
-        if (tenantId) {
-            seqQuery = seqQuery.eq('tenant_id', tenantId);
+        if (tenantId !== null && !isNaN(tenantId)) {
+            seqQuery = seqQuery.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
         }
         
-        const { data: activeSequences, error: seqError } = await seqQuery;
+        let activeSequences;
+        let seqError;
+        ({ data: activeSequences, error: seqError } = await seqQuery);
 
         if (seqError) {
-            console.error('Failed to fetch active sequences:', seqError);
-            return;
+            console.error('Failed to fetch active sequences (retrying without tenant filter):', seqError);
+            const fallback = await supabaseAdmin
+                .from('step_sequences')
+                .select('id')
+                .eq('is_active', true);
+            if (fallback.error) {
+                console.error('Fallback query also failed:', fallback.error);
+                return;
+            }
+            activeSequences = fallback.data;
         }
 
         if (!activeSequences || activeSequences.length === 0) {
@@ -342,11 +376,11 @@ function calculateNextNotificationTime(step) {
             return now.toISOString();
         
         case 'hours':
-            now.setHours(now.getHours() + delayValue);
+            now.setTime(now.getTime() + delayValue * 60 * 60 * 1000);
             return now.toISOString();
         
         case 'days':
-            now.setDate(now.getDate() + delayValue);
+            now.setTime(now.getTime() + delayValue * 24 * 60 * 60 * 1000);
             return now.toISOString();
         
         case 'scheduled':
