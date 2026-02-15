@@ -45,6 +45,37 @@ async function registerServiceWorker() {
     }
 }
 
+// Service Workerがアクティブになるまで待つ（初回読み込み時のPush購読エラーを防ぐ）
+async function waitForServiceWorkerActive(registration) {
+    if (registration.active && registration.active.state === 'activated') {
+        return registration;
+    }
+    const sw = registration.installing || registration.waiting;
+    if (sw) {
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Service Workerの準備がタイムアウトしました。ページを再読み込みしてお試しください')), 15000);
+            const onStateChange = () => {
+                if (sw.state === 'activated') {
+                    clearTimeout(timeout);
+                    sw.removeEventListener('statechange', onStateChange);
+                    resolve();
+                } else if (sw.state === 'redundant') {
+                    clearTimeout(timeout);
+                    sw.removeEventListener('statechange', onStateChange);
+                    reject(new Error('Service Workerの有効化に失敗しました'));
+                }
+            };
+            sw.addEventListener('statechange', onStateChange);
+            if (sw.state === 'activated') {
+                clearTimeout(timeout);
+                sw.removeEventListener('statechange', onStateChange);
+                resolve();
+            }
+        });
+    }
+    return await navigator.serviceWorker.ready;
+}
+
 // Push通知のサブスクリプション取得
 async function subscribeToPush(registration) {
     try {
@@ -110,9 +141,8 @@ async function requestNotificationPermission() {
         // Service Worker登録
         const registration = await registerServiceWorker();
         
-        // Service Workerが完全に準備できるまで待つ
-        await registration.ready;
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Service Workerがアクティブになるまで待つ（初回でもPush購読できるようにする）
+        await waitForServiceWorkerActive(registration);
 
         // 通知許可リクエスト
         const permission = await Notification.requestPermission();
@@ -163,7 +193,9 @@ async function requestNotificationPermission() {
         let errorMsg = error.message || '通知の設定に失敗しました。もう一度お試しください。';
         
         // 特定のエラーメッセージを日本語に翻訳
-        if (errorMsg.includes('Invalid subscription')) {
+        if (errorMsg.includes('active service worker') || errorMsg.includes('Service Worker')) {
+            errorMsg = '通知の準備ができていません。2〜3秒待ってからもう一度お試しください。';
+        } else if (errorMsg.includes('Invalid subscription')) {
             errorMsg = 'サブスクリプション情報が無効です。ページを再読み込みして再度お試しください。';
         } else if (errorMsg.includes('endpoint')) {
             errorMsg = '通知の設定に問題が発生しました。ブラウザを最新版に更新してください。';
@@ -185,6 +217,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (Notification.permission === 'granted') {
         button.textContent = '登録済みです ✓';
         button.disabled = true;
+    }
+
+    // ページ読み込み時にService Workerを事前登録（クリック時には既にアクティブに）
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(err => 
+            console.warn('SW事前登録:', err)
+        );
     }
 
     button.addEventListener('click', requestNotificationPermission);
