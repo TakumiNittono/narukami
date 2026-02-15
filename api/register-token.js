@@ -331,21 +331,22 @@ async function sendImmediateStep(userId, sequenceId, progressId, stepNotificatio
  */
 function calculateNextNotificationTime(step) {
     const now = new Date();
+    const delayValue = Number(step.delay_value) || 0;
 
     switch (step.delay_type) {
         case 'immediate':
             return now.toISOString();
         
         case 'minutes':
-            now.setMinutes(now.getMinutes() + step.delay_value);
+            now.setMinutes(now.getMinutes() + delayValue);
             return now.toISOString();
         
         case 'hours':
-            now.setHours(now.getHours() + step.delay_value);
+            now.setHours(now.getHours() + delayValue);
             return now.toISOString();
         
         case 'days':
-            now.setDate(now.getDate() + step.delay_value);
+            now.setDate(now.getDate() + delayValue);
             return now.toISOString();
         
         case 'scheduled':

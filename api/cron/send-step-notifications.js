@@ -25,7 +25,8 @@ export default async function handler(req, res) {
         const tenantId = req.body?.tenant_id ? parseInt(req.body.tenant_id) : null;
         
         // 配信予定時刻を過ぎた未完了の進捗を取得
-        let progressQuery = supabaseAdmin
+        // step_sequencesのjoinを外してシンプルに（tenant_idカラム未追加環境でも動作）
+        const { data: allProgress, error: progressError } = await supabaseAdmin
             .from('user_step_progress')
             .select(`
                 id,
@@ -33,27 +34,25 @@ export default async function handler(req, res) {
                 sequence_id,
                 current_step,
                 next_notification_at,
-                users!inner(id, fcm_token, tenant_id),
-                step_sequences!inner(id, tenant_id)
+                users!inner(id, fcm_token, tenant_id)
             `)
             .eq('completed', false)
-            .lte('next_notification_at', new Date().toISOString());
+            .lte('next_notification_at', new Date().toISOString())
+            .limit(1000);
         
-        const { data: allProgress, error: progressError } = await progressQuery
-            .limit(1000); // 一度に取得する件数を増やす（フィルタリング前）
+        if (progressError) {
+            console.error('[Step Cron] Progress query error:', progressError);
+            throw progressError;
+        }
         
-        if (progressError) throw progressError;
-        
-        // tenant_idでフィルタリング（指定されている場合、JavaScriptでフィルタリング）
+        // tenant_idでフィルタリング（指定されている場合）
         const pendingProgress = tenantId 
             ? (allProgress || []).filter(p => p.users?.tenant_id === tenantId)
             : (allProgress || []);
 
-        if (progressError) throw progressError;
-
         if (!pendingProgress || pendingProgress.length === 0) {
             console.log('[Step Cron] No pending notifications found');
-            return res.status(200).json({ status: 'ok', message: 'No pending notifications', sent: 0 });
+            return res.status(200).json({ status: 'ok', message: 'No pending notifications', sent: 0, failed: 0, total: 0 });
         }
 
         console.log(`[Step Cron] Found ${pendingProgress.length} pending notifications`);
@@ -86,8 +85,20 @@ export default async function handler(req, res) {
                     continue;
                 }
 
-                // 通知を送信
-                const subscription = JSON.parse(progress.users.fcm_token);
+                // 通知を送信（subscription形式: { endpoint, keys: { p256dh, auth } }）
+                let subscription;
+                try {
+                    subscription = JSON.parse(progress.users.fcm_token);
+                } catch (parseErr) {
+                    console.error(`[Step Cron] Invalid fcm_token for user ${progress.user_id}:`, parseErr);
+                    failureCount++;
+                    continue;
+                }
+                if (!subscription.endpoint || !subscription.keys) {
+                    console.error(`[Step Cron] Invalid subscription format for user ${progress.user_id}`);
+                    failureCount++;
+                    continue;
+                }
                 const payload = JSON.stringify({
                     title: stepNotification.title,
                     body: stepNotification.body,
@@ -185,7 +196,8 @@ export default async function handler(req, res) {
             status: 'ok',
             message: 'Step notifications sent',
             sent: successCount,
-            failed: failureCount
+            failed: failureCount,
+            total: successCount + failureCount
         });
     } catch (err) {
         console.error('[Step Cron] Job error:', err);
@@ -198,21 +210,22 @@ export default async function handler(req, res) {
  */
 function calculateNextNotificationTime(step) {
     const now = new Date();
+    const delayValue = Number(step.delay_value) || 0;
 
     switch (step.delay_type) {
         case 'immediate':
             return now.toISOString();
         
         case 'minutes':
-            now.setMinutes(now.getMinutes() + step.delay_value);
+            now.setMinutes(now.getMinutes() + delayValue);
             return now.toISOString();
         
         case 'hours':
-            now.setHours(now.getHours() + step.delay_value);
+            now.setHours(now.getHours() + delayValue);
             return now.toISOString();
         
         case 'days':
-            now.setDate(now.getDate() + step.delay_value);
+            now.setDate(now.getDate() + delayValue);
             return now.toISOString();
         
         case 'scheduled':
