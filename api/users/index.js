@@ -95,19 +95,19 @@ async function handleList(req, res, tenantId) {
                 .eq('user_id', user.id)
                 .eq('event_type', 'open');
 
-            // ユーザーがクリックした通知数
+            // ユーザーがクリックした通知数（notification_idでユニーク化）
             const { data: clickEvents } = await supabaseAdmin
                 .from('notification_events')
-                .select('id')
+                .select('notification_id')
                 .eq('user_id', user.id)
                 .eq('event_type', 'click');
 
             // 配信数 = そのテナントに送られた通知数（notifications.sent=true）
             const totalSent = user.tenant_id ? (tenantSentMap[user.tenant_id] || 0) : 0;
             const totalOpened = openEvents?.length || 0;
-            const totalClicked = clickEvents?.length || 0;
+            const uniqueClicked = new Set((clickEvents || []).map(e => e.notification_id)).size;
 
-            const ctr = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0.0';
+            const ctr = totalSent > 0 ? ((uniqueClicked / totalSent) * 100).toFixed(1) : '0.0';
 
             // fcm_tokenからデバイス情報を抽出（可能な場合）
             let deviceInfo = 'Unknown';
@@ -136,7 +136,7 @@ async function handleList(req, res, tenantId) {
                 stats: {
                     total_sent: totalSent,
                     total_opened: totalOpened,
-                    total_clicked: totalClicked,
+                    total_clicked: uniqueClicked,
                     ctr: parseFloat(ctr)
                 }
             };
@@ -186,7 +186,7 @@ async function handleDetail(req, res, tenantId) {
     // 統計情報を取得
     const [openEventsRes, clickEventsRes, sentCountRes] = await Promise.all([
         supabaseAdmin.from('notification_events').select('id').eq('user_id', user.id).eq('event_type', 'open'),
-        supabaseAdmin.from('notification_events').select('id').eq('user_id', user.id).eq('event_type', 'click'),
+        supabaseAdmin.from('notification_events').select('notification_id').eq('user_id', user.id).eq('event_type', 'click'),
         user.tenant_id
             ? supabaseAdmin.from('notifications').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id).eq('sent', true)
             : Promise.resolve({ count: 0 })
@@ -194,9 +194,9 @@ async function handleDetail(req, res, tenantId) {
 
     const totalSent = sentCountRes.count || 0;
     const totalOpened = openEventsRes.data?.length || 0;
-    const totalClicked = clickEventsRes.data?.length || 0;
+    const uniqueClicked = new Set((clickEventsRes.data || []).map(e => e.notification_id)).size;
 
-    const ctr = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0.0';
+    const ctr = totalSent > 0 ? ((uniqueClicked / totalSent) * 100).toFixed(1) : '0.0';
 
     // デバイス情報を抽出
     let deviceInfo = 'Unknown';
@@ -230,7 +230,7 @@ async function handleDetail(req, res, tenantId) {
             stats: {
                 total_sent: totalSent,
                 total_opened: totalOpened,
-                total_clicked: totalClicked,
+                total_clicked: uniqueClicked,
                 ctr: parseFloat(ctr)
             }
         }
