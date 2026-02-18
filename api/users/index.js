@@ -73,16 +73,21 @@ async function handleList(req, res, tenantId) {
     const { count, error: countError } = await countQuery;
     if (countError) throw countError;
 
+    // テナントごとの配信済み通知数をまとめて取得（N+1回避）
+    const tenantIds = [...new Set((users || []).map(u => u.tenant_id).filter(Boolean))];
+    const tenantSentMap = {};
+    await Promise.all(tenantIds.map(async (tid) => {
+        const { count } = await supabaseAdmin
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('tenant_id', tid)
+            .eq('sent', true);
+        tenantSentMap[tid] = count || 0;
+    }));
+
     // 各ユーザーの統計情報を取得
     const usersWithStats = await Promise.all(
         (users || []).map(async (user) => {
-            // ユーザーが受信した通知数（sentイベント）
-            const { data: sentEvents } = await supabaseAdmin
-                .from('notification_events')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('event_type', 'sent');
-
             // ユーザーが開封した通知数
             const { data: openEvents } = await supabaseAdmin
                 .from('notification_events')
@@ -97,13 +102,12 @@ async function handleList(req, res, tenantId) {
                 .eq('user_id', user.id)
                 .eq('event_type', 'click');
 
-            const totalSent = sentEvents?.length || 0;
+            // 配信数 = そのテナントに送られた通知数（notifications.sent=true）
+            const totalSent = user.tenant_id ? (tenantSentMap[user.tenant_id] || 0) : 0;
             const totalOpened = openEvents?.length || 0;
             const totalClicked = clickEvents?.length || 0;
 
-            const openRate = totalSent > 0 ? ((totalOpened / totalSent) * 100).toFixed(1) : '0.0';
-            const ctrDenom = totalSent > 0 ? totalSent : totalOpened;
-            const ctr = ctrDenom > 0 ? ((totalClicked / ctrDenom) * 100).toFixed(1) : '0.0';
+            const ctr = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0.0';
 
             // fcm_tokenからデバイス情報を抽出（可能な場合）
             let deviceInfo = 'Unknown';
@@ -133,7 +137,6 @@ async function handleList(req, res, tenantId) {
                     total_sent: totalSent,
                     total_opened: totalOpened,
                     total_clicked: totalClicked,
-                    open_rate: parseFloat(openRate),
                     ctr: parseFloat(ctr)
                 }
             };
@@ -181,31 +184,19 @@ async function handleDetail(req, res, tenantId) {
     }
 
     // 統計情報を取得
-    const { data: sentEvents } = await supabaseAdmin
-        .from('notification_events')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('event_type', 'sent');
+    const [openEventsRes, clickEventsRes, sentCountRes] = await Promise.all([
+        supabaseAdmin.from('notification_events').select('id').eq('user_id', user.id).eq('event_type', 'open'),
+        supabaseAdmin.from('notification_events').select('id').eq('user_id', user.id).eq('event_type', 'click'),
+        user.tenant_id
+            ? supabaseAdmin.from('notifications').select('*', { count: 'exact', head: true }).eq('tenant_id', user.tenant_id).eq('sent', true)
+            : Promise.resolve({ count: 0 })
+    ]);
 
-    const { data: openEvents } = await supabaseAdmin
-        .from('notification_events')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('event_type', 'open');
+    const totalSent = sentCountRes.count || 0;
+    const totalOpened = openEventsRes.data?.length || 0;
+    const totalClicked = clickEventsRes.data?.length || 0;
 
-    const { data: clickEvents } = await supabaseAdmin
-        .from('notification_events')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('event_type', 'click');
-
-    const totalSent = sentEvents?.length || 0;
-    const totalOpened = openEvents?.length || 0;
-    const totalClicked = clickEvents?.length || 0;
-
-    const openRate = totalSent > 0 ? ((totalOpened / totalSent) * 100).toFixed(1) : '0.0';
-    const ctrDenom = totalSent > 0 ? totalSent : totalOpened;
-    const ctr = ctrDenom > 0 ? ((totalClicked / ctrDenom) * 100).toFixed(1) : '0.0';
+    const ctr = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0.0';
 
     // デバイス情報を抽出
     let deviceInfo = 'Unknown';
@@ -240,7 +231,6 @@ async function handleDetail(req, res, tenantId) {
                 total_sent: totalSent,
                 total_opened: totalOpened,
                 total_clicked: totalClicked,
-                open_rate: parseFloat(openRate),
                 ctr: parseFloat(ctr)
             }
         }
