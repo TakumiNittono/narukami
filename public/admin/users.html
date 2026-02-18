@@ -299,18 +299,10 @@
     </style>
 </head>
 <body>
-    <!-- ログイン画面 -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-box">
-            <h1>Narukami 管理画面</h1>
-            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
-            <button id="loginButton" class="btn-primary">ログイン</button>
-            <div id="loginError" class="error-message" style="display: none;"></div>
-        </div>
-    </div>
+    <div id="admin-nav-root"></div>
 
     <!-- メイン画面 -->
-    <div id="mainScreen" class="main-screen" style="display: none;">
+    <div id="mainScreen" class="main-screen admin-page">
         <header class="header">
             <h1>ユーザー管理</h1>
             <div style="display: flex; gap: 10px;">
@@ -387,48 +379,34 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="/admin/admin.js"></script>
     <script>
         let currentPage = 1;
         let totalPages = 1;
         let currentDetailUserId = null;
-        // currentTenantIdはadmin.jsで既に宣言されているため、再宣言しない
+        let pageTenantId = null;
 
-        async function loadTenantId() {
+        async function onAdminReady(user) {
             try {
-                const domain = window.location.hostname;
-                const password = localStorage.getItem('adminPassword');
-                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
-                    headers: { 'Authorization': `Bearer ${password}` }
-                });
-                if (res.ok) {
-                    const result = await res.json();
-                    if (result.status === 'ok' && result.data.tenant) {
-                        currentTenantId = result.data.tenant.id;
-                        console.log('Tenant ID loaded:', currentTenantId);
-                    }
+                const result = await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname));
+                if (result.status === 'ok' && result.data.tenant) {
+                    pageTenantId = result.data.tenant.id;
                 }
             } catch (err) {
                 console.error('Failed to load tenant ID:', err);
             }
+            await loadUsers(1);
         }
 
         async function loadUsers(page = 1) {
             try {
-                const password = localStorage.getItem('adminPassword');
-                const url = currentTenantId 
-                    ? `/api/users?action=list&page=${page}&limit=50&tenant_id=${currentTenantId}`
+                const url = pageTenantId
+                    ? `/api/users?action=list&page=${page}&limit=50&tenant_id=${pageTenantId}`
                     : `/api/users?action=list&page=${page}&limit=50`;
-                
-                const res = await fetch(url, {
-                    headers: { 'Authorization': `Bearer ${password}` }
-                });
 
-                if (!res.ok) {
-                    throw new Error('Failed to load users');
-                }
+                const result = await apiGet(url);
 
-                const result = await res.json();
                 if (result.status !== 'ok') {
                     throw new Error(result.message || 'Failed to load users');
                 }
@@ -448,7 +426,7 @@
 
             } catch (err) {
                 console.error('Error loading users:', err);
-                document.getElementById('usersTableBody').innerHTML = 
+                document.getElementById('usersTableBody').innerHTML =
                     '<tr><td colspan="9" style="text-align: center; color: #dc3545;">エラー: ' + err.message + '</td></tr>';
             }
         }
@@ -473,7 +451,7 @@
 
         function renderUsersTable(users) {
             const tbody = document.getElementById('usersTableBody');
-            
+
             if (users.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #666;">ユーザーが見つかりません</td></tr>';
                 return;
@@ -536,7 +514,7 @@
             const modal = document.getElementById('userDetailModal');
             const content = document.getElementById('userDetailContent');
             const userIdSpan = document.getElementById('modalUserId');
-            
+
             modal.style.display = 'block';
             currentDetailUserId = userId;
             userIdSpan.textContent = userId;
@@ -544,20 +522,12 @@
             content.innerHTML = '<div class="loading">読み込み中...</div>';
 
             try {
-                const password = localStorage.getItem('adminPassword');
-                const url = currentTenantId 
-                    ? `/api/users?action=detail&user_id=${userId}&tenant_id=${currentTenantId}`
+                const detailUrl = pageTenantId
+                    ? `/api/users?action=detail&user_id=${userId}&tenant_id=${pageTenantId}`
                     : `/api/users?action=detail&user_id=${userId}`;
-                
-                const res = await fetch(url, {
-                    headers: { 'Authorization': `Bearer ${password}` }
-                });
 
-                if (!res.ok) {
-                    throw new Error('Failed to load user detail');
-                }
+                const result = await apiGet(detailUrl);
 
-                const result = await res.json();
                 if (result.status !== 'ok') {
                     throw new Error(result.message || 'Failed to load user detail');
                 }
@@ -566,21 +536,17 @@
                 const createdDate = new Date(user.created_at).toLocaleString('ja-JP');
 
                 // イベント履歴を取得
-                const eventsUrl = currentTenantId 
-                    ? `/api/users?action=events&user_id=${userId}&limit=50&tenant_id=${currentTenantId}`
+                const eventsUrl = pageTenantId
+                    ? `/api/users?action=events&user_id=${userId}&limit=50&tenant_id=${pageTenantId}`
                     : `/api/users?action=events&user_id=${userId}&limit=50`;
-                
-                const eventsRes = await fetch(eventsUrl, {
-                    headers: { 'Authorization': `Bearer ${password}` }
-                });
 
                 let eventsHtml = '<div class="loading">読み込み中...</div>';
-                if (eventsRes.ok) {
-                    const eventsResult = await eventsRes.json();
+                try {
+                    const eventsResult = await apiGet(eventsUrl);
                     if (eventsResult.status === 'ok' && eventsResult.data.events.length > 0) {
                         eventsHtml = eventsResult.data.events.map(event => {
                             const eventDate = new Date(event.created_at).toLocaleString('ja-JP');
-                            const eventTypeClass = event.event_type === 'sent' ? 'sent' : 
+                            const eventTypeClass = event.event_type === 'sent' ? 'sent' :
                                                   event.event_type === 'open' ? 'open' : 'click';
                             return `
                                 <div class="event-item">
@@ -595,6 +561,8 @@
                     } else {
                         eventsHtml = '<p style="color: #666; text-align: center; padding: 20px;">イベント履歴がありません</p>';
                     }
+                } catch (eventsErr) {
+                    eventsHtml = '<p style="color: #666; text-align: center; padding: 20px;">イベント履歴がありません</p>';
                 }
 
                 content.innerHTML = `
@@ -655,51 +623,29 @@
             return labels[eventType] || eventType;
         }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
         async function deleteUser(userId) {
             const msg = `ユーザー #${userId} を削除しますか？\n\nこの操作は取り消せません。通知履歴・ステップ配信進捗も削除されます。`;
             if (!confirm(msg)) return;
 
             try {
-                const password = localStorage.getItem('adminPassword');
-                const body = JSON.stringify({ user_id: userId });
-                const url = currentTenantId
-                    ? `/api/users?action=delete&tenant_id=${currentTenantId}`
+                const body = { user_id: userId };
+                const url = pageTenantId
+                    ? `/api/users?action=delete&tenant_id=${pageTenantId}`
                     : `/api/users?action=delete`;
 
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${password}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: body
-                });
+                const result = await apiPost(url, body);
 
-                let result;
-                try {
-                    result = await res.json();
-                } catch (parseErr) {
-                    throw new Error('サーバー応答の解析に失敗しました');
-                }
-
-                if (!res.ok || result.status !== 'ok') {
+                if (result.status !== 'ok') {
                     const errMsg = result.detail ? `${result.message}: ${result.detail}` : (result.message || '削除に失敗しました');
                     throw new Error(errMsg);
                 }
 
-                alert('ユーザーを削除しました');
+                toast('success', '削除完了', 'ユーザーを削除しました');
                 closeModal();
                 await loadUsers(currentPage);
             } catch (err) {
                 console.error('Error deleting user:', err);
-                alert('エラー: ' + err.message);
+                toast('error', 'エラー', 'エラー: ' + err.message);
             }
         }
 
@@ -710,13 +656,6 @@
                 closeModal();
             }
         }
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            await checkAuth();
-            await loadTenantId();
-            document.getElementById('mainScreen').style.display = 'block';
-            await loadUsers(1);
-        });
     </script>
 </body>
 </html>

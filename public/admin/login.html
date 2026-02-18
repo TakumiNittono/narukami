@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - Narukami 管理画面</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+    <style>
+        .login-form-group {
+            margin-bottom: 16px;
+        }
+        .login-form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-text);
+            margin-bottom: 6px;
+        }
+        .login-form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 14px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            background: var(--color-surface);
+            color: var(--color-text);
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .login-form-group input:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 11px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-login:hover { background: var(--color-primary-hover); }
+        .btn-login:disabled { opacity: 0.65; cursor: not-allowed; pointer-events: none; }
+        .login-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="login-page">
+    <!-- Left brand panel -->
+    <div class="login-brand">
+        <div class="login-brand-logo">Narukami</div>
+        <div class="login-brand-tagline">プッシュ通知で<br>エンゲージメントを最大化</div>
+        <ul class="login-brand-features">
+            <li>KPIダッシュボード</li>
+            <li>ステップ配信管理</li>
+            <li>ユーザー管理</li>
+            <li>リアルタイム分析</li>
+        </ul>
+    </div>
+
+    <!-- Right login form -->
+    <div class="login-form-side">
+        <div class="login-card">
+            <h1 class="login-card-title">管理画面にログイン</h1>
+            <p class="login-card-subtitle">メールアドレスとパスワードでログイン</p>
+
+            <div id="loginError" class="login-error"></div>
+
+            <form id="loginForm" novalidate>
+                <div class="login-form-group">
+                    <label for="emailInput">メールアドレス</label>
+                    <input type="email" id="emailInput" placeholder="admin@example.com" autocomplete="email" required>
+                </div>
+                <div class="login-form-group">
+                    <label for="passwordInput">パスワード</label>
+                    <input type="password" id="passwordInput" placeholder="••••••••" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="btn-login" id="loginBtn">ログイン</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(async () => {
+    const form       = document.getElementById('loginForm');
+    const loginBtn   = document.getElementById('loginBtn');
+    const emailInput = document.getElementById('emailInput');
+    const passInput  = document.getElementById('passwordInput');
+    const errorDiv   = document.getElementById('loginError');
+
+    function showError(msg) {
+        errorDiv.textContent = msg;
+        errorDiv.classList.add('visible');
+    }
+
+    function setLoading(loading) {
+        loginBtn.disabled = loading;
+        loginBtn.innerHTML = loading
+            ? '<span class="login-spinner"></span> ログイン中...'
+            : 'ログイン';
+    }
+
+    // Load Supabase config
+    let supabaseClient;
+    try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        if (!config.supabaseUrl || !config.supabaseAnonKey) throw new Error('Config missing');
+        supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+    } catch (e) {
+        showError('設定の読み込みに失敗しました。しばらくしてからお試しください。');
+        loginBtn.disabled = true;
+        return;
+    }
+
+    // Already logged in?
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+        window.location.href = '/admin/dashboard';
+        return;
+    }
+
+    // Check for error param (e.g. redirected back from initAdmin)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'unauthorized') {
+        showError('このアカウントはアクセスが許可されていません。');
+    }
+
+    // Login form submit
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorDiv.classList.remove('visible');
+
+        const email    = emailInput.value.trim();
+        const password = passInput.value;
+
+        if (!email || !password) {
+            showError('メールアドレスとパスワードを入力してください');
+            return;
+        }
+
+        setLoading(true);
+
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+        if (error) {
+            showError('メールアドレスまたはパスワードが正しくありません');
+            setLoading(false);
+            return;
+        }
+
+        // Whitelist check
+        const check = await fetch('/api/stats', {
+            headers: { 'Authorization': `Bearer ${data.session.access_token}` }
+        });
+
+        if (check.status === 401) {
+            await supabaseClient.auth.signOut();
+            showError('このアカウントはアクセスが許可されていません。');
+            setLoading(false);
+            return;
+        }
+
+        window.location.href = '/admin/dashboard';
+    });
+
+    // Enter key support
+    passInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') form.dispatchEvent(new Event('submit'));
+    });
+})();
+</script>
+</body>
+</html>

@@ -5,7 +5,8 @@ import { verifyAdmin } from '../../lib/auth.js';
 export default async function handler(req, res) {
     const action = req.query.action || (req.method === 'GET' ? 'list' : req.method === 'POST' ? (req.body.segment_id || req.body.filter_conditions ? 'preview' : 'create') : 'list');
 
-    if (action !== 'preview' && !verifyAdmin(req)) {
+    const adminUser = await verifyAdmin(req);
+    if (action !== 'preview' && !adminUser) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 
@@ -15,7 +16,7 @@ export default async function handler(req, res) {
         } else if (action === 'create') {
             return await handleCreate(req, res);
         } else if (action === 'preview') {
-            if (!verifyAdmin(req)) {
+            if (!adminUser) {
                 return res.status(401).json({ status: 'error', message: 'Unauthorized' });
             }
             return await handlePreview(req, res);

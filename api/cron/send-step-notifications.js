@@ -12,8 +12,8 @@ webpush.setVapidDetails(
 export default async function handler(req, res) {
     // Vercel Cron または管理画面からのリクエストを受け付ける
     const isCronRequest = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
-    const isAdminRequest = verifyAdmin(req);
-    
+    const isAdminRequest = await verifyAdmin(req);
+
     if (!isCronRequest && !isAdminRequest) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }

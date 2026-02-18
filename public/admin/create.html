@@ -7,22 +7,10 @@
     <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
-    <!-- ログイン画面 -->
-    <div id="loginScreen" class="login-screen" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; z-index: 1000;">
-        <div class="login-box" style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 300px;">
-            <h1 style="margin: 0 0 20px 0; text-align: center; color: #333; font-size: 24px;">Narukami 管理画面</h1>
-            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px;">
-            <button id="loginButton" class="btn-primary" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">ログイン</button>
-            <div id="loginError" class="error-message" style="display: none; color: red; margin-top: 10px; text-align: center;"></div>
-        </div>
-    </div>
+    <div id="admin-nav-root"></div>
 
-    <!-- 作成画面 -->
-    <div id="createScreen" class="create-screen" style="display: none;">
-        <header class="header">
-            <h1>通知作成</h1>
-            <a href="/admin" class="btn-secondary">戻る</a>
-        </header>
+    <div id="createScreen" class="admin-page">
+        <div class="container">
 
         <div class="container">
             <form id="createForm" class="create-form">
@@ -80,60 +68,41 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="/admin/admin.js"></script>
     <script>
         var segments = [];
-        // currentTenantIdはadmin.jsで既に宣言されているので、ここでは宣言しない
-        if (typeof currentTenantId === 'undefined') {
-            window.currentTenantId = null;
+        var pageTenantId = null;
+
+        async function onAdminReady(user) {
+            await loadTenantId();
+            await loadSegments();
+
+            var createForm = document.getElementById('createForm');
+            if (createForm) createForm.addEventListener('submit', handleFormSubmit);
         }
 
-        // ========== ヘルパー関数 ==========
-
-        function showError(message) {
+        function showFormError(message) {
             var errorDiv = document.getElementById('formError');
-            if (errorDiv) {
-                errorDiv.textContent = message;
-                errorDiv.style.display = 'block';
-            }
+            if (errorDiv) { errorDiv.textContent = message; errorDiv.style.display = 'block'; }
             var successDiv = document.getElementById('formSuccess');
             if (successDiv) successDiv.style.display = 'none';
         }
 
-        function showSuccess(message) {
+        function showFormSuccess(message) {
             var successDiv = document.getElementById('formSuccess');
-            if (successDiv) {
-                successDiv.textContent = message;
-                successDiv.style.display = 'block';
-            }
+            if (successDiv) { successDiv.textContent = message; successDiv.style.display = 'block'; }
             var errorDiv = document.getElementById('formError');
             if (errorDiv) errorDiv.style.display = 'none';
         }
 
-        function showCreateScreen() {
-            var ls = document.getElementById('loginScreen');
-            var cs = document.getElementById('createScreen');
-            if (ls) ls.style.display = 'none';
-            if (cs) cs.style.display = 'block';
-        }
-
-        function showLoginScreenLocal() {
-            var ls = document.getElementById('loginScreen');
-            var cs = document.getElementById('createScreen');
-            if (ls) ls.style.display = 'flex';
-            if (cs) cs.style.display = 'none';
-        }
-
         async function loadTenantId() {
             try {
-                var password = localStorage.getItem('adminPassword');
-                var res = await fetch('/api/stats?domain=' + encodeURIComponent(window.location.hostname), {
-                    headers: { 'Authorization': 'Bearer ' + password }
-                });
-                if (res.ok) {
+                var res = await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname));
+                if (res && res.ok) {
                     var result = await res.json();
                     if (result.status === 'ok' && result.data && result.data.tenant) {
-                        window.currentTenantId = result.data.tenant.id;
+                        pageTenantId = result.data.tenant.id;
                     }
                 }
             } catch (err) {
@@ -143,15 +112,11 @@
 
         async function loadSegments() {
             try {
-                var password = localStorage.getItem('adminPassword');
-                var tenantId = window.currentTenantId || currentTenantId;
-                var url = tenantId
-                    ? '/api/segments?action=list&tenant_id=' + tenantId
+                var url = pageTenantId
+                    ? '/api/segments?action=list&tenant_id=' + pageTenantId
                     : '/api/segments?action=list';
-                var response = await fetch(url, {
-                    headers: { 'Authorization': 'Bearer ' + password }
-                });
-                if (response.ok) {
+                var response = await apiGet(url);
+                if (response && response.ok) {
                     var result = await response.json();
                     segments = result.data || [];
                     var select = document.getElementById('segmentSelect');
@@ -184,24 +149,14 @@
         async function updateTargetCount() {
             var segmentId = document.getElementById('segmentSelect').value;
             var countDiv = document.getElementById('targetCount');
-            if (!segmentId) {
-                countDiv.textContent = '';
-                return;
-            }
+            if (!segmentId) { countDiv.textContent = ''; return; }
             try {
-                var password = localStorage.getItem('adminPassword');
                 var payload = { segment_id: parseInt(segmentId) };
-                var tenantId = window.currentTenantId || currentTenantId;
-                if (tenantId) payload.tenant_id = tenantId;
-                var response = await fetch('/api/segments?action=preview', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + password },
-                    body: JSON.stringify(payload)
-                });
-                if (response.ok) {
+                if (pageTenantId) payload.tenant_id = pageTenantId;
+                var response = await apiPost('/api/segments?action=preview', payload);
+                if (response && response.ok) {
                     var result = await response.json();
-                    var count = result.data.user_count || 0;
-                    countDiv.textContent = '対象ユーザー数: ' + count + '人';
+                    countDiv.textContent = '対象ユーザー数: ' + (result.data.user_count || 0) + '人';
                 }
             } catch (error) {
                 console.error('Target count error:', error);
@@ -210,7 +165,6 @@
 
         async function handleFormSubmit(e) {
             e.preventDefault();
-
             var title = document.getElementById('title').value;
             var body = document.getElementById('body').value;
             var url = document.getElementById('url').value;
@@ -218,129 +172,31 @@
             var targetType = document.querySelector('input[name="target_type"]:checked').value;
             var segmentId = document.getElementById('segmentSelect').value;
 
-            if (!title || !body || !send_at) {
-                showError('タイトル、本文、送信日時は必須です');
-                return;
-            }
+            if (!title || !body || !send_at) { showFormError('タイトル、本文、送信日時は必須です'); return; }
+            if (targetType === 'segment' && !segmentId) { showFormError('セグメントを選択してください'); return; }
 
-            if (targetType === 'segment' && !segmentId) {
-                showError('セグメントを選択してください');
-                return;
-            }
+            var payload = { title, body, url, send_at, target_type: targetType };
+            if (targetType === 'segment') payload.target_segment_id = parseInt(segmentId);
+            if (pageTenantId) payload.tenant_id = pageTenantId;
 
-            var payload = {
-                title: title,
-                body: body,
-                url: url,
-                send_at: send_at,
-                target_type: targetType
-            };
-
-            if (targetType === 'segment') {
-                payload.target_segment_id = parseInt(segmentId);
-            }
-            var tenantId = window.currentTenantId || currentTenantId;
-            if (tenantId) {
-                payload.tenant_id = tenantId;
-            }
+            var submitBtn = document.querySelector('button[type="submit"]');
+            setButtonLoading(submitBtn, true, '作成中...');
 
             try {
-                var response = await fetch('/api/notifications/create', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + localStorage.getItem('adminPassword')
-                    },
-                    body: JSON.stringify(payload)
-                });
-
+                var response = await apiPost('/api/notifications/create', payload);
                 var result = await response.json();
-
                 if (result.status === 'ok') {
-                    showSuccess('通知を作成しました');
-                    setTimeout(function() {
-                        window.location.href = '/admin';
-                    }, 1000);
+                    toast('success', '通知を作成しました');
+                    setTimeout(function() { window.location.href = '/admin'; }, 1200);
                 } else {
-                    showError(result.message || '作成に失敗しました');
+                    showFormError(result.message || '作成に失敗しました');
+                    setButtonLoading(submitBtn, false);
                 }
             } catch (error) {
-                console.error('Request error:', error);
-                showError('エラーが発生しました: ' + error.message);
+                showFormError('エラーが発生しました: ' + error.message);
+                setButtonLoading(submitBtn, false);
             }
         }
-
-        async function doLogin() {
-            var password = document.getElementById('passwordInput').value;
-            var errorDiv = document.getElementById('loginError');
-
-            if (!password) {
-                if (errorDiv) { errorDiv.textContent = 'パスワードを入力してください'; errorDiv.style.display = 'block'; }
-                return;
-            }
-
-            try {
-                var response = await fetch('/api/stats', {
-                    headers: { 'Authorization': 'Bearer ' + password }
-                });
-
-                if (response.ok) {
-                    localStorage.setItem('adminPassword', password);
-                    showCreateScreen();
-                    await loadTenantId();
-                    await loadSegments();
-                } else {
-                    if (errorDiv) { errorDiv.textContent = 'パスワードが正しくありません'; errorDiv.style.display = 'block'; }
-                }
-            } catch (err) {
-                if (errorDiv) { errorDiv.textContent = 'エラーが発生しました'; errorDiv.style.display = 'block'; }
-            }
-        }
-
-        // ========== 初期化 ==========
-
-        document.addEventListener('DOMContentLoaded', async function() {
-            // ログインボタン
-            var loginButton = document.getElementById('loginButton');
-            if (loginButton) {
-                loginButton.addEventListener('click', doLogin);
-            }
-
-            // Enterキーでログイン
-            var passwordInput = document.getElementById('passwordInput');
-            if (passwordInput) {
-                passwordInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') doLogin();
-                });
-            }
-
-            // フォーム送信
-            var createForm = document.getElementById('createForm');
-            if (createForm) {
-                createForm.addEventListener('submit', handleFormSubmit);
-            }
-
-            // 既にログイン済みかチェック
-            var password = localStorage.getItem('adminPassword');
-            if (password) {
-                try {
-                    var response = await fetch('/api/stats', {
-                        headers: { 'Authorization': 'Bearer ' + password }
-                    });
-                    if (response.ok) {
-                        showCreateScreen();
-                        await loadTenantId();
-                        await loadSegments();
-                    } else {
-                        showLoginScreenLocal();
-                    }
-                } catch (err) {
-                    showLoginScreenLocal();
-                }
-            } else {
-                showLoginScreenLocal();
-            }
-        });
     </script>
 </body>
 </html>

@@ -1,565 +1,250 @@
-// ドメインベースでテナントを識別
-let currentTenantId = null;
-let currentTenant = null;
+/**
+ * NARUKAMI Admin - Shared Auth & UI Layer
+ * Supabase Google OAuth + Nav injection + Toast + Skeleton
+ */
 
-async function identifyTenantByDomain() {
-    const domain = window.location.hostname;
-    
-    // モックモード（実際のAPI呼び出しは将来実装）
-    // 実際には /api/tenants?domain=xxx でテナント情報を取得
-    if (domain.includes('example.com') || domain.includes('localhost')) {
-        currentTenantId = 1;
-        currentTenant = {
-            id: 1,
-            name: 'サンプル企業A',
-            domain: domain,
-            plan: 'pro'
-        };
-    } else {
-        // デフォルトテナント（モック）
-        currentTenantId = 1;
-        currentTenant = {
-            id: 1,
-            name: 'デフォルトテナント',
-            domain: domain,
-            plan: 'basic'
-        };
-    }
-    
-    // テナント情報を表示
-    const tenantTitle = document.getElementById('tenantTitle');
-    const currentDomainEl = document.getElementById('currentDomain');
-    
-    if (tenantTitle && currentTenant) {
-        tenantTitle.textContent = `${currentTenant.name} - 管理画面`;
-    }
-    if (currentDomainEl) {
-        currentDomainEl.textContent = domain;
-    }
-    
-    return currentTenantId;
-}
+let _supabase = null;
+let _currentUser = null;
+let _accessToken = null;
 
-// 認証チェック
-async function checkAuth() {
-    // テナントを識別
-    await identifyTenantByDomain();
-    
-    const password = localStorage.getItem('adminPassword');
-    
-    if (!password) {
-        showLoginScreen();
-        return false;
-    }
-
-    // パスワード検証（stats APIで確認）
+// ==========================================
+// Initialisation (called on DOMContentLoaded)
+// ==========================================
+async function initAdmin() {
     try {
-        const response = await fetch('/api/stats', {
-            headers: {
-                'Authorization': `Bearer ${password}`
-            }
+        // 1. Get Supabase config from backend
+        const configRes = await fetch('/api/config');
+        if (!configRes.ok) throw new Error('Failed to load config');
+        const config = await configRes.json();
+
+        if (!config.supabaseUrl || !config.supabaseAnonKey) {
+            throw new Error('Supabase config is missing');
+        }
+
+        // 2. Initialise Supabase client (loaded from CDN)
+        _supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+        // 3. Check existing session
+        const { data: { session } } = await _supabase.auth.getSession();
+
+        if (!session) {
+            window.location.href = '/admin/login';
+            return;
+        }
+
+        _accessToken = session.access_token;
+        _currentUser = session.user;
+
+        // 4. Whitelist check via /api/stats
+        const checkRes = await fetch('/api/stats', {
+            headers: { 'Authorization': `Bearer ${_accessToken}` }
         });
 
-        if (response.status === 401) {
-            localStorage.removeItem('adminPassword');
-            showLoginScreen();
-            return false;
+        if (checkRes.status === 401) {
+            await _supabase.auth.signOut();
+            window.location.href = '/admin/login?error=unauthorized';
+            return;
         }
 
-        if (response.ok) {
-            showMainScreen();
-            return true;
+        // 5. Inject nav bar
+        _injectNav(_currentUser);
+
+        // 6. Call page callback
+        if (typeof onAdminReady === 'function') {
+            onAdminReady(_currentUser);
         }
-    } catch (error) {
-        console.error('Auth check error:', error);
-        showLoginScreen();
-        return false;
-    }
 
-    return false;
-}
-
-// ログイン画面表示
-function showLoginScreen() {
-    const loginScreen = document.getElementById('loginScreen');
-    const mainScreen = document.getElementById('mainScreen');
-    const createScreen = document.getElementById('createScreen');
-    
-    if (loginScreen) loginScreen.style.display = 'flex';
-    if (mainScreen) mainScreen.style.display = 'none';
-    if (createScreen) createScreen.style.display = 'none';
-}
-
-// メイン画面表示
-function showMainScreen() {
-    const loginScreen = document.getElementById('loginScreen');
-    const mainScreen = document.getElementById('mainScreen');
-    
-    if (loginScreen) loginScreen.style.display = 'none';
-    if (mainScreen) mainScreen.style.display = 'block';
-    
-    loadDashboard();
-    loadNotifications();
-}
-
-// ログイン処理
-async function login() {
-    const password = document.getElementById('passwordInput').value;
-    const errorDiv = document.getElementById('loginError');
-
-    if (!password) {
-        errorDiv.textContent = 'パスワードを入力してください';
-        errorDiv.style.display = 'block';
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/stats', {
-            headers: {
-                'Authorization': `Bearer ${password}`
-            }
-        });
-
-        if (response.ok) {
-            localStorage.setItem('adminPassword', password);
-            showMainScreen();
-        } else {
-            errorDiv.textContent = 'パスワードが正しくありません';
-            errorDiv.style.display = 'block';
-        }
-    } catch (error) {
-        errorDiv.textContent = 'エラーが発生しました';
-        errorDiv.style.display = 'block';
+    } catch (err) {
+        console.error('[Admin] Init error:', err);
+        window.location.href = '/admin/login';
     }
 }
 
-// ログアウト処理
-function logout() {
-    localStorage.removeItem('adminPassword');
-    showLoginScreen();
+// ==========================================
+// Auth helpers
+// ==========================================
+function getToken() { return _accessToken; }
+function getCurrentUser() { return _currentUser; }
+
+async function adminLogout() {
+    if (_supabase) await _supabase.auth.signOut();
+    window.location.href = '/admin/login';
 }
 
-// ダッシュボードデータ読み込み
-let usersChart = null;
-let notificationsChart = null;
-
-async function loadDashboard() {
-    await loadKPIs();
-    await loadTrends('users', '30d');
-    await loadNotificationsChart();
-}
-
-// KPIサマリ読み込み
-async function loadKPIs() {
-    try {
-        const password = localStorage.getItem('adminPassword');
-        const url = currentTenantId 
-            ? `/api/analytics?type=overview&tenant_id=${currentTenantId}`
-            : '/api/analytics?type=overview';
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${password}`
-            }
-        });
-
-        if (response.ok) {
-            let result;
-            try {
-                result = await response.json();
-            } catch (jsonError) {
-                console.error('KPI JSON parse error:', jsonError);
-                return;
-            }
-            
-            const data = result.data || {};
-
-            // KPIカード更新（要素が存在する場合のみ）
-            const kpiTotalUsersEl = document.getElementById('kpiTotalUsers');
-            const kpiNewUsersEl = document.getElementById('kpiNewUsers');
-            const kpiOpenRateEl = document.getElementById('kpiOpenRate');
-            const kpiCtrEl = document.getElementById('kpiCtr');
-
-            if (kpiTotalUsersEl) kpiTotalUsersEl.textContent = formatNumber(data.total_users || 0);
-            if (kpiNewUsersEl) kpiNewUsersEl.textContent = formatNumber(data.new_users_this_week || 0);
-            if (kpiOpenRateEl) kpiOpenRateEl.textContent = formatPercent(data.avg_open_rate || 0);
-            if (kpiCtrEl) kpiCtrEl.textContent = formatPercent(data.avg_ctr || 0);
-
-            // トレンド表示
-            if (data.trends) {
-                updateTrend('kpiUsersTrend', data.trends.users_change_pct);
-                updateTrend('kpiNewUsersTrend', data.trends.new_users_change_pct);
-                updateTrend('kpiOpenRateTrend', data.trends.open_rate_change_pct);
-                updateTrend('kpiCtrTrend', data.trends.ctr_change_pct);
-            }
-        } else {
-            console.error('KPI API error:', response.status, response.statusText);
-        }
-    } catch (error) {
-        console.error('KPI load error:', error);
-    }
-}
-
-// トレンド表示更新
-function updateTrend(elementId, changePct) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-
-    const isPositive = changePct >= 0;
-    const symbol = isPositive ? '▲' : '▼';
-    const color = isPositive ? '#28a745' : '#dc3545';
-    
-    element.textContent = `${symbol} ${Math.abs(changePct).toFixed(1)}%`;
-    element.style.color = color;
-}
-
-// グラフデータ読み込み
-async function loadTrends(metric, period) {
-    try {
-        const password = localStorage.getItem('adminPassword');
-        const url = currentTenantId 
-            ? `/api/analytics?type=trends&metric=${metric}&period=${period}&tenant_id=${currentTenantId}`
-            : `/api/analytics?type=trends&metric=${metric}&period=${period}`;
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${password}`
-            }
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            const dataPoints = result.data.data_points;
-
-            if (metric === 'users') {
-                updateUsersChart(dataPoints, period);
-            }
-        }
-    } catch (error) {
-        console.error('Trends load error:', error);
-    }
-}
-
-// ユーザー推移グラフ更新
-function updateUsersChart(dataPoints, period) {
-    const ctx = document.getElementById('usersChart');
-    if (!ctx) return;
-
-    const labels = dataPoints.map(d => {
-        const date = new Date(d.date);
-        return `${date.getMonth() + 1}/${date.getDate()}`;
+// ==========================================
+// API helpers
+// ==========================================
+async function apiGet(url) {
+    const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
     });
-    const totalData = dataPoints.map(d => d.value);
-    const newData = dataPoints.map(d => d.new || 0);
-
-    if (usersChart) {
-        usersChart.destroy();
+    if (res.status === 401) {
+        window.location.href = '/admin/login';
+        return null;
     }
+    return res;
+}
 
-    usersChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: '累計ユーザー数',
-                    data: totalData,
-                    borderColor: '#4A90D9',
-                    backgroundColor: 'rgba(74, 144, 217, 0.1)',
-                    tension: 0.4
-                },
-                {
-                    label: '新規登録数',
-                    data: newData,
-                    borderColor: '#28a745',
-                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                    tension: 0.4
-                }
-            ]
+async function apiPost(url, body) {
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
+        body: JSON.stringify(body)
     });
+    if (res.status === 401) {
+        window.location.href = '/admin/login';
+        return null;
+    }
+    return res;
 }
 
-// 通知パフォーマンスグラフ読み込み
-async function loadNotificationsChart() {
-    try {
-        const password = localStorage.getItem('adminPassword');
-        const url = currentTenantId 
-            ? `/api/analytics?type=notifications&limit=10&tenant_id=${currentTenantId}`
-            : '/api/analytics?type=notifications&limit=10';
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${password}`
-            }
-        });
+// ==========================================
+// Nav bar injection
+// ==========================================
+const NAV_LINKS = [
+    { href: '/admin/dashboard',         label: 'ダッシュボード', match: ['/admin', '/admin/dashboard'] },
+    { href: '/admin/create',            label: '通知作成',       match: ['/admin/create'] },
+    { href: '/admin/sequences',         label: 'ステップ配信',   match: ['/admin/sequences'] },
+    { href: '/admin/users',             label: 'ユーザー',       match: ['/admin/users'] },
+    { href: '/admin/managed',           label: 'テナント管理',   match: ['/admin/managed'] },
+];
 
-        if (response.ok) {
-            const result = await response.json();
-            const notifications = result.data.slice(0, 10).reverse(); // 最新10件
+function _injectNav(user) {
+    const root = document.getElementById('admin-nav-root');
+    if (!root) return;
 
-            const ctx = document.getElementById('notificationsChart');
-            if (!ctx) return;
+    const path = window.location.pathname.replace(/\/$/, '') || '/admin';
 
-            const labels = notifications.map(n => {
-                const date = new Date(n.send_at);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-            });
-            const sentData = notifications.map(n => n.performance.total_sent);
-            const openedData = notifications.map(n => n.performance.total_opened);
-            const clickedData = notifications.map(n => n.performance.total_clicked);
+    const linksHtml = NAV_LINKS.map(({ href, label, match }) => {
+        const isActive = match.some(m => path === m || path.startsWith(m + '/'));
+        return `<a href="${href}" class="${isActive ? 'active' : ''}">${label}</a>`;
+    }).join('');
 
-            if (notificationsChart) {
-                notificationsChart.destroy();
-            }
+    const initial = (user.email || '?')[0].toUpperCase();
+    const email = user.email || '';
 
-            notificationsChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: '送信数',
-                            data: sentData,
-                            backgroundColor: '#4A90D9'
-                        },
-                        {
-                            label: '開封数',
-                            data: openedData,
-                            backgroundColor: '#28a745'
-                        },
-                        {
-                            label: 'クリック数',
-                            data: clickedData,
-                            backgroundColor: '#ffc107'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-    } catch (error) {
-        console.error('Notifications chart load error:', error);
+    root.innerHTML = `
+        <nav class="admin-nav">
+            <a class="admin-nav-logo" href="/admin/dashboard">Narukami</a>
+            <div class="admin-nav-links">${linksHtml}</div>
+            <div class="admin-nav-right">
+                <span class="admin-nav-email">${escapeHtml(email)}</span>
+                <div class="admin-nav-avatar" title="${escapeHtml(email)}">${escapeHtml(initial)}</div>
+                <button class="admin-nav-logout" id="adminLogoutBtn">ログアウト</button>
+            </div>
+        </nav>`;
+
+    document.getElementById('adminLogoutBtn').addEventListener('click', adminLogout);
+
+    // Ensure toast container exists
+    if (!document.getElementById('toast-container')) {
+        const tc = document.createElement('div');
+        tc.id = 'toast-container';
+        document.body.appendChild(tc);
     }
 }
 
-// ユーティリティ関数
+// ==========================================
+// Toast notifications
+// ==========================================
+function toast(type, title, message, duration = 4000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    const icon = icons[type] || icons.info;
+
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <div class="toast-body">
+            <div class="toast-title">${escapeHtml(title)}</div>
+            ${message ? `<div class="toast-message">${escapeHtml(message)}</div>` : ''}
+        </div>`;
+
+    container.appendChild(el);
+
+    setTimeout(() => {
+        el.classList.add('toast-out');
+        el.addEventListener('animationend', () => el.remove(), { once: true });
+    }, duration);
+}
+
+// ==========================================
+// Skeleton helpers
+// ==========================================
+function skeletonKpis(containerId, count = 4) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = Array(count).fill(
+        `<div class="skeleton skeleton-kpi"></div>`
+    ).join('');
+}
+
+function skeletonRows(containerId, rows = 5) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = Array(rows).fill(
+        `<div class="skeleton skeleton-row" style="margin-bottom:8px"></div>`
+    ).join('');
+}
+
+// ==========================================
+// Button loading state
+// ==========================================
+function setButtonLoading(btn, loading, label) {
+    if (loading) {
+        btn.disabled = true;
+        btn._originalHtml = btn.innerHTML;
+        btn.innerHTML = `<span class="btn-spinner"></span> ${escapeHtml(label || '処理中...')}`;
+    } else {
+        btn.disabled = false;
+        if (btn._originalHtml) btn.innerHTML = btn._originalHtml;
+    }
+}
+
+// ==========================================
+// Utilities (shared with pages)
+// ==========================================
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
 function formatNumber(num) {
     if (num === null || num === undefined) return '-';
-    return num.toLocaleString('ja-JP');
+    return Number(num).toLocaleString('ja-JP');
 }
 
 function formatPercent(num) {
     if (num === null || num === undefined) return '-';
-    return `${num.toFixed(1)}%`;
-}
-
-// 通知一覧取得
-async function loadNotifications() {
-    const listDiv = document.getElementById('notificationsList');
-    
-    if (!listDiv) return;
-
-    try {
-        const password = localStorage.getItem('adminPassword');
-        
-        // 通知一覧とパフォーマンスデータを取得
-        const notificationsUrl = currentTenantId 
-            ? `/api/notifications/list?tenant_id=${currentTenantId}`
-            : '/api/notifications/list';
-        const analyticsUrl = currentTenantId 
-            ? `/api/analytics?type=notifications&limit=100&tenant_id=${currentTenantId}`
-            : '/api/analytics?type=notifications&limit=100';
-        
-        const [notificationsRes, analyticsRes] = await Promise.all([
-            fetch(notificationsUrl, {
-                headers: { 'Authorization': `Bearer ${password}` }
-            }),
-            fetch(analyticsUrl, {
-                headers: { 'Authorization': `Bearer ${password}` }
-            })
-        ]);
-
-        if (notificationsRes.ok && analyticsRes.ok) {
-            const notificationsResult = await notificationsRes.json();
-            const analyticsResult = await analyticsRes.json();
-            
-            // パフォーマンスデータをマップ
-            const perfMap = {};
-            if (analyticsResult.data) {
-                analyticsResult.data.forEach(item => {
-                    perfMap[item.id] = item.performance;
-                });
-            }
-
-            if (notificationsResult.data && notificationsResult.data.length > 0) {
-                listDiv.innerHTML = notificationsResult.data.map(notif => {
-                    const perf = perfMap[notif.id] || {
-                        total_sent: 0,
-                        total_opened: 0,
-                        total_clicked: 0,
-                        open_rate: 0,
-                        ctr: 0
-                    };
-
-                    return `
-                        <div class="notification-item">
-                            <div class="notification-header">
-                                <h3>${escapeHtml(notif.title)}</h3>
-                                <span class="status-badge ${notif.sent ? 'sent' : 'pending'}">
-                                    ${notif.sent ? '✅ 送信済み' : '⏳ 予約済み'}
-                                </span>
-                            </div>
-                            <p>${escapeHtml(notif.body)}</p>
-                            ${notif.url ? `<p>URL: <a href="${escapeHtml(notif.url)}" target="_blank">${escapeHtml(notif.url)}</a></p>` : ''}
-                            <div class="notification-meta">
-                                <span>送信予定: ${formatDateTime(notif.send_at)}</span>
-                            </div>
-                            ${notif.sent && perf.total_sent > 0 ? `
-                                <div class="notification-performance">
-                                    <h4>📊 パフォーマンス</h4>
-                                    <div class="perf-grid">
-                                        <div class="perf-item">
-                                            <div class="perf-label">送信数</div>
-                                            <div class="perf-value">${formatNumber(perf.total_sent)}</div>
-                                        </div>
-                                        <div class="perf-item">
-                                            <div class="perf-label">開封数</div>
-                                            <div class="perf-value">${formatNumber(perf.total_opened)}</div>
-                                        </div>
-                                        <div class="perf-item">
-                                            <div class="perf-label">クリック数</div>
-                                            <div class="perf-value">${formatNumber(perf.total_clicked)}</div>
-                                        </div>
-                                        <div class="perf-item">
-                                            <div class="perf-label">開封率</div>
-                                            <div class="perf-value">${formatPercent(perf.open_rate)}</div>
-                                        </div>
-                                        <div class="perf-item">
-                                            <div class="perf-label">CTR</div>
-                                            <div class="perf-value">${formatPercent(perf.ctr)}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ` : ''}
-                            ${!notif.sent ? `
-                                <button class="test-send-btn" onclick="testSend(${notif.id}, '${escapeHtml(notif.title)}', '${escapeHtml(notif.body)}', '${escapeHtml(notif.url || '')}')">
-                                    テスト送信
-                                </button>
-                            ` : ''}
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                listDiv.innerHTML = '<p class="loading">通知がありません</p>';
-            }
-        } else {
-            listDiv.innerHTML = '<p class="loading">読み込みエラー</p>';
-        }
-    } catch (error) {
-        console.error('Notifications load error:', error);
-        listDiv.innerHTML = '<p class="loading">読み込みエラー</p>';
-    }
-}
-
-// テスト送信
-async function testSend(id, title, body, url) {
-    if (!confirm('テスト送信を実行しますか？')) {
-        return;
-    }
-
-    try {
-        const password = localStorage.getItem('adminPassword');
-        const response = await fetch('/api/send-notification', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${password}`
-            },
-            body: JSON.stringify({ title, body, url })
-        });
-
-        const result = await response.json();
-
-        if (result.status === 'ok') {
-            alert(`送信完了！\n成功: ${result.sent_count}件\n失敗: ${result.error_count}件`);
-            loadNotifications();
-        } else {
-            alert('送信に失敗しました: ' + (result.message || 'エラー'));
-        }
-    } catch (error) {
-        alert('エラーが発生しました: ' + error.message);
-    }
-}
-
-// ユーティリティ関数
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return `${Number(num).toFixed(1)}%`;
 }
 
 function formatDateTime(isoString) {
+    if (!isoString) return '-';
     const date = new Date(isoString);
     return date.toLocaleString('ja-JP', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
     });
 }
 
-// ページ読み込み時の処理
-document.addEventListener('DOMContentLoaded', () => {
-    // ログインボタン
-    const loginButton = document.getElementById('loginButton');
-    if (loginButton) {
-        loginButton.addEventListener('click', login);
-        
-        // Enterキーでログイン
-        const passwordInput = document.getElementById('passwordInput');
-        if (passwordInput) {
-            passwordInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    login();
-                }
-            });
-        }
-    }
+function updateTrend(elementId, changePct) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const positive = changePct >= 0;
+    el.textContent = `${positive ? '▲' : '▼'} ${Math.abs(changePct).toFixed(1)}%`;
+    el.className = `kpi-trend ${positive ? 'positive' : 'negative'}`;
+}
 
-    // ログアウトボタン
-    const logoutButton = document.getElementById('logoutButton');
-    if (logoutButton) {
-        logoutButton.addEventListener('click', logout);
-    }
-
-    // 認証チェック
-    checkAuth();
-});
+// ==========================================
+// Boot
+// ==========================================
+document.addEventListener('DOMContentLoaded', initAdmin);

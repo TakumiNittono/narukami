@@ -19,7 +19,6 @@
             max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
-            display: none; /* 認証後に表示 */
         }
         
         .tenant-header {
@@ -240,6 +239,9 @@
     </style>
 </head>
 <body>
+    <div id="admin-nav-root"></div>
+
+    <div class="admin-page">
     <div class="tenant-dashboard">
         <!-- テナントヘッダー -->
         <div class="tenant-header" id="tenantHeader">
@@ -250,9 +252,7 @@
                     <span class="plan-badge" id="tenantPlan"></span>
                 </div>
             </div>
-            <div>
-                <button onclick="logout()" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">ログアウト</button>
-            </div>
+            <div></div>
         </div>
 
         <!-- KPIダッシュボード -->
@@ -353,65 +353,34 @@
             </div>
         </div>
     </div>
+    </div><!-- end admin-page -->
 
-    <!-- ログイン画面 -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-box">
-            <h1>Narukami 管理画面</h1>
-            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
-            <button id="loginButton" class="btn-primary">ログイン</button>
-            <div id="loginError" class="error-message" style="display: none;"></div>
-        </div>
-    </div>
-
-    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="/admin/admin.js"></script>
     <script>
-        // ドメインからテナントを識別
-        // currentTenantとcurrentTenantIdはadmin.jsで既に宣言されているため、再宣言しない
         let tenantId = null;
+        let currentTenant = null;
+        let usersChart = null;
+        let notificationsChart = null;
 
-        // 現在のドメインを取得
-        function getCurrentDomain() {
-            return window.location.hostname;
+        // Called by admin.js after auth is confirmed
+        async function onAdminReady(user) {
+            await loadTenantInfo();
+            await loadKPIs();
+            await loadRecentNotifications();
+            await loadChart('30d');
         }
 
-        // パスワードを取得（認証チェック済み）
-        function getAdminPassword() {
-            return localStorage.getItem('adminPassword');
-        }
-
-        // admin.jsの表示関数をオーバーライド（tenant-dashboard用）
-        const originalShowLoginScreen = window.showLoginScreen;
-        const originalShowMainScreen = window.showMainScreen;
-
-        window.showLoginScreen = function() {
-            const loginScreen = document.getElementById('loginScreen');
-            const dashboard = document.querySelector('.tenant-dashboard');
-            if (loginScreen) loginScreen.style.display = 'flex';
-            if (dashboard) dashboard.style.display = 'none';
-        };
-
-        window.showMainScreen = function() {
-            const loginScreen = document.getElementById('loginScreen');
-            const dashboard = document.querySelector('.tenant-dashboard');
-            if (loginScreen) loginScreen.style.display = 'none';
-            if (dashboard) dashboard.style.display = 'block';
-        };
+        function getCurrentDomain() { return window.location.hostname; }
 
         // テナント情報を取得
         async function loadTenantInfo() {
             try {
                 const domain = getCurrentDomain();
-                const password = getAdminPassword();
                 console.log('Loading tenant info for domain:', domain);
-                
-                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
-                    headers: {
-                        'Authorization': `Bearer ${password}`
-                    }
-                });
+
+                const res = await apiGet(`/api/stats?domain=${encodeURIComponent(domain)}`);
                 
                 console.log('Tenant API response status:', res.status);
                 
@@ -480,13 +449,8 @@
                 console.log('Loading KPIs for tenant_id:', tenantId);
                 console.log('KPI API URL:', url);
                 
-                const res = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${getAdminPassword()}`
-                    }
-                });
-                
-                console.log('KPI API response status:', res.status);
+                const res = await apiGet(url);
+                console.log('KPI API response status:', res ? res.status : 'null');
                 
                 if (res.ok) {
                     const result = await res.json();
@@ -535,16 +499,6 @@
             }
         }
         
-        function formatNumber(num) {
-            if (num === null || num === undefined) return '0';
-            return num.toLocaleString();
-        }
-        
-        function formatPercent(num) {
-            if (num === null || num === undefined) return '0%';
-            return `${num.toFixed(1)}%`;
-        }
-        
         function showMockKPIs() {
             document.getElementById('kpiTotalUsers').textContent = '0';
             document.getElementById('kpiNewUsers').textContent = '0';
@@ -565,14 +519,9 @@
                 const container = document.getElementById('recentNotifications');
                 
                 // 通知一覧とパフォーマンスデータを取得
-                const password = getAdminPassword();
                 const [notificationsRes, analyticsRes] = await Promise.all([
-                    fetch(`/api/notifications/list?tenant_id=${tenantId}`, {
-                        headers: { 'Authorization': `Bearer ${password}` }
-                    }),
-                    fetch(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`, {
-                        headers: { 'Authorization': `Bearer ${password}` }
-                    })
+                    apiGet(`/api/notifications/list?tenant_id=${tenantId}`),
+                    apiGet(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`)
                 ]);
                 
                 if (notificationsRes.ok && analyticsRes.ok) {
@@ -659,12 +608,6 @@
             }
         }
         
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
         // 今すぐ送信
         async function sendNow(notificationId, event) {
             if (!confirm('この通知を今すぐ送信しますか？')) {
@@ -679,14 +622,7 @@
             }
 
             try {
-                const response = await fetch('/api/notifications/list?action=send-now', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${getAdminPassword()}`
-                    },
-                    body: JSON.stringify({ notification_id: notificationId })
-                });
+                const response = await apiPost('/api/notifications/list?action=send-now', { notification_id: notificationId });
 
                 const result = await response.json();
 
@@ -722,15 +658,9 @@
             
             try {
                 // ユーザー推移グラフ
-                const password = getAdminPassword();
-                const trendsRes = await fetch(`/api/analytics?type=trends&metric=users&period=${period}&tenant_id=${tenantId}`, {
-                    headers: { 'Authorization': `Bearer ${password}` }
-                });
-                
+                const trendsRes = await apiGet(`/api/analytics?type=trends&metric=users&period=${period}&tenant_id=${tenantId}`);
                 // 通知パフォーマンスグラフ
-                const notificationsRes = await fetch(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`, {
-                    headers: { 'Authorization': `Bearer ${password}` }
-                });
+                const notificationsRes = await apiGet(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`);
                 
                 if (trendsRes.ok) {
                     const trendsResult = await trendsRes.json();
@@ -809,106 +739,6 @@
             }
         }
 
-        // 初期化
-        async function init() {
-            try {
-                console.log('[Dashboard] Initializing...');
-                
-                // 認証チェック
-                const isAuthenticated = await checkAuth();
-                console.log('[Dashboard] Auth check result:', isAuthenticated);
-                
-                if (!isAuthenticated) {
-                    // ログイン画面を表示
-                    const loginScreen = document.getElementById('loginScreen');
-                    if (loginScreen) {
-                        loginScreen.style.display = 'flex';
-                        console.log('[Dashboard] Showing login screen');
-                    }
-                    return; // ログイン画面が表示される
-                }
-
-                // 認証済みの場合のみダッシュボードを表示
-                const loginScreen = document.getElementById('loginScreen');
-                const dashboard = document.querySelector('.tenant-dashboard');
-                if (loginScreen) loginScreen.style.display = 'none';
-                if (dashboard) {
-                    dashboard.style.display = 'block';
-                    console.log('[Dashboard] Showing dashboard');
-                } else {
-                    console.error('[Dashboard] Dashboard element not found!');
-                }
-                
-                console.log('[Dashboard] Loading data...');
-                await loadTenantInfo();
-                await loadKPIs();
-                await loadRecentNotifications();
-                await loadChart('30d');
-                console.log('[Dashboard] Initialization complete');
-            } catch (error) {
-                console.error('[Dashboard] Initialization error:', error);
-                // エラー時もログイン画面を表示
-                const loginScreen = document.getElementById('loginScreen');
-                if (loginScreen) loginScreen.style.display = 'flex';
-            }
-        }
-
-        // ログイン成功時の処理をオーバーライド
-        const originalLogin = window.login;
-        window.login = async function() {
-            const password = document.getElementById('passwordInput').value;
-            const errorDiv = document.getElementById('loginError');
-
-            if (!password) {
-                errorDiv.textContent = 'パスワードを入力してください';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/stats', {
-                    headers: {
-                        'Authorization': `Bearer ${password}`
-                    }
-                });
-
-                if (response.ok) {
-                    localStorage.setItem('adminPassword', password);
-                    // ログイン成功後、ダッシュボードを初期化
-                    await init();
-                } else {
-                    errorDiv.textContent = 'パスワードが正しくありません';
-                    errorDiv.style.display = 'block';
-                }
-            } catch (error) {
-                errorDiv.textContent = 'エラーが発生しました';
-                errorDiv.style.display = 'block';
-            }
-        };
-
-        // ログインボタンのイベントリスナーを設定
-        function setupLoginButton() {
-            const loginButton = document.getElementById('loginButton');
-            const passwordInput = document.getElementById('passwordInput');
-            
-            if (loginButton) {
-                loginButton.addEventListener('click', window.login);
-            }
-            
-            if (passwordInput) {
-                passwordInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        window.login();
-                    }
-                });
-            }
-        }
-
-        // ページ読み込み時に初期化
-        document.addEventListener('DOMContentLoaded', () => {
-            setupLoginButton();
-            init();
-        });
     </script>
 </body>
 </html>

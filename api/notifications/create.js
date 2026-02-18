@@ -36,7 +36,8 @@ export default async function handler(req, res) {
             });
         }
 
-        if (!verifyAdmin(req)) {
+        const adminUser = await verifyAdmin(req);
+        if (!adminUser) {
             return res.status(401).json({ status: 'error', message: 'Unauthorized' });
         }
 

@@ -14,7 +14,8 @@ export default async function handler(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    if (!verifyAdmin(req)) {
+    const adminUser = await verifyAdmin(req);
+    if (!adminUser) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 
@@ -48,7 +49,8 @@ async function handleSendNow(req, res) {
         return res.status(405).json({ status: 'error', message: 'Method not allowed' });
     }
 
-    if (!verifyAdmin(req)) {
+    const adminUser2 = await verifyAdmin(req);
+    if (!adminUser2) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 

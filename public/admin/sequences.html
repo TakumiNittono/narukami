@@ -7,25 +7,8 @@
     <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
-    <!-- ログイン画面 -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-box">
-            <h1>Narukami 管理画面</h1>
-            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
-            <button id="loginButton" class="btn-primary">ログイン</button>
-            <div id="loginError" class="error-message" style="display: none;"></div>
-        </div>
-    </div>
-
-    <!-- メイン画面 -->
-    <div id="mainScreen" class="main-screen" style="display: none;">
-        <header class="header">
-            <h1>ステップ配信管理</h1>
-            <div style="display: flex; gap: 10px;">
-                <a href="/admin" class="btn-secondary">ダッシュボード</a>
-                <button id="logoutButton" class="btn-secondary">ログアウト</button>
-            </div>
-        </header>
+    <div id="admin-nav-root"></div>
+    <div id="mainScreen" class="admin-page">
 
         <div class="container">
             <!-- 手動実行ボタン（目立つ位置に配置） -->
@@ -53,70 +36,37 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="/admin/admin.js"></script>
     <script>
-        // テナントIDを取得（ドメインから）
-        // currentTenantIdはadmin.jsで既に宣言されているので、ここでは再宣言しない
-        async function loadTenantId() {
+        let pageTenantId = null;
+
+        async function onAdminReady(user) {
             try {
-                const domain = window.location.hostname;
-                const password = localStorage.getItem('adminPassword');
-                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
-                    headers: { 'Authorization': `Bearer ${password}` }
-                });
-                if (res.ok) {
+                const res = await apiGet(`/api/stats?domain=${encodeURIComponent(window.location.hostname)}`);
+                if (res && res.ok) {
                     const result = await res.json();
                     if (result.status === 'ok' && result.data.tenant) {
-                        // admin.jsで宣言されたcurrentTenantIdを更新
-                        if (typeof window.currentTenantId !== 'undefined') {
-                            window.currentTenantId = result.data.tenant.id;
-                        } else {
-                            // admin.jsが読み込まれていない場合のフォールバック
-                            currentTenantId = result.data.tenant.id;
-                        }
-                        console.log('Tenant ID loaded:', currentTenantId || window.currentTenantId);
+                        pageTenantId = result.data.tenant.id;
                     }
                 }
-            } catch (err) {
-                console.error('Failed to load tenant ID:', err);
-            }
-        }
+            } catch (err) { console.error('Failed to load tenant ID:', err); }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            await checkAuth();
-            await loadTenantId();
-            // currentTenantIdを確実に取得
-            if (!currentTenantId && window.currentTenantId) {
-                currentTenantId = window.currentTenantId;
-            }
-            document.getElementById('mainScreen').style.display = 'block';
-            
-            // 手動実行ボタンのイベントリスナーを設定
             const executeBtn = document.getElementById('executeNowBtn');
-            if (executeBtn) {
-                executeBtn.addEventListener('click', executeStepNotifications);
-            } else {
-                console.error('Execute button not found!');
-            }
-            
+            if (executeBtn) executeBtn.addEventListener('click', executeStepNotifications);
+
             await Promise.all([loadSequences(), loadStepStatus()]);
-        });
+        }
 
         async function loadSequences() {
             const listDiv = document.getElementById('sequencesList');
             listDiv.innerHTML = '<p class="loading">読み込み中...</p>';
-            
+
             try {
-                // currentTenantIdを確実に取得
-                const tenantId = currentTenantId || window.currentTenantId;
-                const url = tenantId 
-                    ? `/api/step-sequences?action=list&tenant_id=${tenantId}`
+                const url = pageTenantId
+                    ? `/api/step-sequences?action=list&tenant_id=${pageTenantId}`
                     : '/api/step-sequences?action=list';
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                    }
-                });
+                const response = await apiGet(url);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -222,71 +172,43 @@
 
         async function toggleSequence(id, isActive) {
             try {
-                const tenantId = currentTenantId || window.currentTenantId;
                 const payload = { id, is_active: isActive };
-                if (tenantId) {
-                    payload.tenant_id = tenantId;
-                }
-                const response = await fetch(`/api/step-sequences?action=toggle`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                    },
-                    body: JSON.stringify(payload)
-                });
-
+                if (pageTenantId) payload.tenant_id = pageTenantId;
+                const response = await apiPost('/api/step-sequences?action=toggle', payload);
                 const result = await response.json();
                 if (result.status === 'ok') {
                     await loadSequences();
                 } else {
-                    alert('更新に失敗しました: ' + result.message);
+                    toast('error', '更新失敗', result.message);
                 }
             } catch (error) {
-                alert('エラーが発生しました: ' + error.message);
+                toast('error', 'エラー', error.message);
             }
         }
 
         async function deleteSequence(id) {
             try {
-                const tenantId = currentTenantId || window.currentTenantId;
                 const payload = { id };
-                if (tenantId) {
-                    payload.tenant_id = tenantId;
-                }
-                const response = await fetch(`/api/step-sequences?action=delete`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                    },
-                    body: JSON.stringify(payload)
-                });
-
+                if (pageTenantId) payload.tenant_id = pageTenantId;
+                const response = await apiPost('/api/step-sequences?action=delete', payload);
                 const result = await response.json();
                 if (result.status === 'ok') {
                     await loadSequences();
                 } else {
-                    alert('削除に失敗しました: ' + result.message);
+                    toast('error', '削除失敗', result.message);
                 }
             } catch (error) {
-                alert('エラーが発生しました: ' + error.message);
+                toast('error', 'エラー', error.message);
             }
         }
 
         async function loadStepStatus() {
             const statusDiv = document.getElementById('stepStatus');
-            
             try {
-                const tenantId = currentTenantId || window.currentTenantId;
-                const url = tenantId 
-                    ? `/api/step-sequences?action=status&tenant_id=${tenantId}`
+                const url = pageTenantId
+                    ? `/api/step-sequences?action=status&tenant_id=${pageTenantId}`
                     : '/api/step-sequences?action=status';
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                    }
-                });
+                const response = await apiGet(url);
 
                 const result = await response.json();
 
@@ -318,47 +240,24 @@
 
         async function executeStepNotifications() {
             const btn = document.getElementById('executeNowBtn');
-            const originalText = btn.textContent;
-            
-            btn.disabled = true;
-            btn.textContent = '実行中...';
-            
+            setButtonLoading(btn, true, '実行中...');
             try {
-                const tenantId = currentTenantId || window.currentTenantId;
                 const payload = {};
-                if (tenantId) {
-                    payload.tenant_id = tenantId;
-                }
-                const response = await fetch('/api/cron/send-step-notifications', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                    },
-                    body: JSON.stringify(payload)
-                });
-
+                if (pageTenantId) payload.tenant_id = pageTenantId;
+                const response = await apiPost('/api/cron/send-step-notifications', payload);
                 const result = await response.json();
-
                 if (result.status === 'ok') {
-                    alert(`実行完了！\n成功: ${result.sent}件\n失敗: ${result.failed}件\n合計: ${result.total}件`);
+                    toast('success', '実行完了', `成功: ${result.sent}件 / 失敗: ${result.failed}件`);
                     await loadStepStatus();
                     await loadSequences();
                 } else {
-                    alert('実行に失敗しました: ' + result.message);
+                    toast('error', '実行失敗', result.message);
                 }
             } catch (error) {
-                alert('エラーが発生しました: ' + error.message);
+                toast('error', 'エラー', error.message);
             } finally {
-                btn.disabled = false;
-                btn.textContent = originalText;
+                setButtonLoading(btn, false);
             }
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
         }
     </script>
 </body>

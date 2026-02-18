@@ -7,18 +7,10 @@
     <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
-    <!-- ログイン画面 -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-box">
-            <h1>Narukami 管理画面</h1>
-            <input type="password" id="passwordInput" placeholder="パスワード" class="password-input">
-            <button id="loginButton" class="btn-primary">ログイン</button>
-            <div id="loginError" class="error-message" style="display: none;"></div>
-        </div>
-    </div>
+    <div id="admin-nav-root"></div>
 
     <!-- 編集画面 -->
-    <div id="editScreen" class="create-screen" style="display: none;">
+    <div id="editScreen" class="create-screen admin-page">
         <header class="header">
             <h1>ステップ配信編集</h1>
             <div style="display: flex; gap: 10px;">
@@ -64,11 +56,12 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="/admin/admin.js"></script>
     <script>
         let stepCounter = 0;
         let sequenceId = null;
-        // currentTenantIdはadmin.jsで既に宣言されているので、ここでは再宣言しない
+        let pageTenantId = null;
 
         // URLパラメータからシーケンスIDを取得
         function getSequenceIdFromUrl() {
@@ -76,55 +69,38 @@
             return params.get('id');
         }
 
-        // テナントIDを取得（ドメインから）
-        async function loadTenantId() {
+        async function onAdminReady(user) {
             try {
-                const domain = window.location.hostname;
-                const password = localStorage.getItem('adminPassword');
-                const res = await fetch(`/api/stats?domain=${encodeURIComponent(domain)}`, {
-                    headers: { 'Authorization': `Bearer ${password}` }
-                });
-                if (res.ok) {
-                    const result = await res.json();
-                    if (result.status === 'ok' && result.data.tenant) {
-                        // admin.jsで宣言されたcurrentTenantIdを更新
-                        if (typeof window.currentTenantId !== 'undefined') {
-                            window.currentTenantId = result.data.tenant.id;
-                        } else {
-                            // admin.jsが読み込まれていない場合のフォールバック
-                            currentTenantId = result.data.tenant.id;
-                        }
-                        console.log('Tenant ID loaded:', currentTenantId || window.currentTenantId);
-                    }
+                const result = await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname));
+                if (result.status === 'ok' && result.data.tenant) {
+                    pageTenantId = result.data.tenant.id;
                 }
             } catch (err) {
                 console.error('Failed to load tenant ID:', err);
             }
+
+            sequenceId = getSequenceIdFromUrl();
+            if (!sequenceId) {
+                showError('シーケンスIDが指定されていません');
+                return;
+            }
+
+            initForm();
+            await loadSequence();
         }
 
         // シーケンスデータを読み込む
         async function loadSequence() {
             try {
-                const tenantId = currentTenantId || window.currentTenantId;
-                const url = tenantId 
-                    ? `/api/step-sequences?action=get&id=${sequenceId}&tenant_id=${tenantId}`
+                const url = pageTenantId
+                    ? `/api/step-sequences?action=get&id=${sequenceId}&tenant_id=${pageTenantId}`
                     : `/api/step-sequences?action=get&id=${sequenceId}`;
-                
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                    }
-                });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
+                const result = await apiGet(url);
 
                 if (result.status === 'ok' && result.data) {
                     const seq = result.data;
-                    
+
                     // フォームにデータを設定
                     document.getElementById('name').value = seq.name || '';
                     document.getElementById('description').value = seq.description || '';
@@ -159,21 +135,6 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            await checkAuth();
-            await loadTenantId();
-            
-            sequenceId = getSequenceIdFromUrl();
-            if (!sequenceId) {
-                showError('シーケンスIDが指定されていません');
-                return;
-            }
-
-            document.getElementById('editScreen').style.display = 'block';
-            initForm();
-            await loadSequence();
-        });
-
         function initForm() {
             // ステップ追加ボタン
             document.getElementById('addStepBtn').addEventListener('click', addStep);
@@ -185,7 +146,7 @@
         function addStep() {
             stepCounter++;
             const container = document.getElementById('stepsContainer');
-            
+
             const stepHtml = `
                 <div class="step-item-form" data-step="${stepCounter}">
                     <div class="step-header">
@@ -282,7 +243,7 @@
             const container = document.querySelector(`[data-step="${stepNum}"]`);
             if (container) {
                 container.querySelectorAll('.timing-option').forEach(opt => opt.classList.remove('selected'));
-                
+
                 // 選択された timing-option に selected クラスを追加
                 if (radio && radio.closest('.timing-option')) {
                     radio.closest('.timing-option').classList.add('selected');
@@ -346,7 +307,6 @@
             }
 
             try {
-                const tenantId = currentTenantId || window.currentTenantId;
                 const payload = {
                     id: sequenceId,
                     name,
@@ -354,30 +314,21 @@
                     is_active,
                     steps
                 };
-                if (tenantId) {
-                    payload.tenant_id = tenantId;
+                if (pageTenantId) {
+                    payload.tenant_id = pageTenantId;
                 }
-                const response = await fetch('/api/step-sequences?action=update', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('adminPassword')}`
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
+                const result = await apiPost('/api/step-sequences?action=update', payload);
 
                 if (result.status === 'ok') {
-                    showSuccess('ステップ配信を更新しました');
+                    toast('success', '更新完了', 'ステップ配信を更新しました');
                     setTimeout(() => {
                         window.location.href = '/admin/sequences';
                     }, 1000);
                 } else {
-                    showError(result.message || '更新に失敗しました');
+                    toast('error', 'エラー', result.message || '更新に失敗しました');
                 }
             } catch (error) {
-                showError('エラーが発生しました: ' + error.message);
+                toast('error', 'エラー', 'エラーが発生しました: ' + error.message);
             }
         }
 

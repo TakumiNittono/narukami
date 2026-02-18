@@ -3,7 +3,8 @@ import { verifyAdmin } from '../../lib/auth.js';
 
 // ステップ配信API統合版（?action=list|create|toggle|delete|status）
 export default async function handler(req, res) {
-    if (!verifyAdmin(req)) {
+    const adminUser = await verifyAdmin(req);
+    if (!adminUser) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 

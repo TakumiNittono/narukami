@@ -196,9 +196,128 @@
             padding: 60px 20px;
             color: #999;
         }
+        .analytics-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .analytics-filter-bar label {
+            font-weight: bold;
+            font-size: 14px;
+            color: #555;
+        }
+        .analytics-filter-bar select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .analytics-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .analytics-stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .analytics-stat-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .analytics-stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+        .analytics-stat-card .sub {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 4px;
+        }
+        .ctr-good { color: #28a745; }
+        .ctr-mid  { color: #fd7e14; }
+        .ctr-low  { color: #dc3545; }
+        .analytics-table-wrap {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .analytics-table-wrap h3 {
+            margin: 0;
+            padding: 16px 20px;
+            font-size: 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        table.ctr-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        table.ctr-table thead tr {
+            background: #f8f9fa;
+        }
+        table.ctr-table th,
+        table.ctr-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        table.ctr-table th {
+            font-weight: 600;
+            color: #555;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        table.ctr-table tbody tr:hover {
+            background: #fafafa;
+        }
+        table.ctr-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bar-bg {
+            flex: 1;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            min-width: 80px;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .bar-fill.ctr-color   { background: #007bff; }
+        .bar-fill.open-color  { background: #28a745; }
+        .tenant-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            background: #e8f0fe;
+            color: #1a56db;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
+    <div id="admin-nav-root"></div>
+    <div class="admin-page">
     <div class="managed-container">
         <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 20px; color: #856404;">
             <strong>📌 モックモード</strong> - この画面はUI表示のみです。API数制限のため、モックデータで動作しています。
@@ -231,6 +350,7 @@
             <button class="tab active" onclick="switchTab('tenants')">顧客一覧</button>
             <button class="tab" onclick="switchTab('tasks')">タスク管理</button>
             <button class="tab" onclick="switchTab('reports')">レポート</button>
+            <button class="tab" onclick="switchTab('analytics')">CTR分析</button>
         </div>
 
         <div id="tenants-tab" class="tab-content active">
@@ -254,6 +374,68 @@
             </div>
             <div class="reports-list" id="reportsList">
                 <div class="empty-state">読み込み中...</div>
+            </div>
+        </div>
+
+        <div id="analytics-tab" class="tab-content">
+            <!-- フィルターバー -->
+            <div class="analytics-filter-bar">
+                <label>顧客:</label>
+                <select id="analyticsTenantFilter" onchange="renderAnalytics()">
+                    <option value="">全顧客</option>
+                </select>
+                <label style="margin-left: 8px;">期間:</label>
+                <select id="analyticsPeriodFilter" onchange="renderAnalytics()">
+                    <option value="7d">過去7日</option>
+                    <option value="30d" selected>過去30日</option>
+                    <option value="90d">過去90日</option>
+                </select>
+            </div>
+
+            <!-- サマリーカード -->
+            <div class="analytics-stats-grid" id="analyticsOverview">
+                <div class="analytics-stat-card">
+                    <h3>平均 CTR</h3>
+                    <div class="value" id="statAvgCtr">—</div>
+                    <div class="sub">全顧客の加重平均</div>
+                </div>
+                <div class="analytics-stat-card">
+                    <h3>平均開封率</h3>
+                    <div class="value" id="statAvgOpen">—</div>
+                    <div class="sub">全顧客の加重平均</div>
+                </div>
+                <div class="analytics-stat-card">
+                    <h3>総配信数</h3>
+                    <div class="value" id="statTotalSent">—</div>
+                    <div class="sub">期間内の合計</div>
+                </div>
+                <div class="analytics-stat-card">
+                    <h3>総クリック数</h3>
+                    <div class="value" id="statTotalClicked">—</div>
+                    <div class="sub">期間内の合計</div>
+                </div>
+            </div>
+
+            <!-- 通知別 CTR テーブル -->
+            <div class="analytics-table-wrap">
+                <h3>通知別パフォーマンス</h3>
+                <table class="ctr-table">
+                    <thead>
+                        <tr>
+                            <th>顧客</th>
+                            <th>通知タイトル</th>
+                            <th>配信数</th>
+                            <th>開封数</th>
+                            <th>クリック数</th>
+                            <th style="min-width:160px;">開封率</th>
+                            <th style="min-width:160px;">CTR</th>
+                            <th>配信日</th>
+                        </tr>
+                    </thead>
+                    <tbody id="analyticsTableBody">
+                        <tr><td colspan="8" style="text-align:center;padding:40px;color:#aaa;">読み込み中...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -396,6 +578,21 @@
         let tasks = [];
         let reports = [];
 
+        // CTR分析用モックデータ（テナント別・通知別）
+        const analyticsNotifications = [
+            { tenant_id: 1, tenant_name: 'サンプル企業A', title: '新商品発売のお知らせ', sent: 5200, opened: 1430, clicked: 546, sent_at: '2026-02-10' },
+            { tenant_id: 1, tenant_name: 'サンプル企業A', title: '週末限定セール', sent: 4800, opened: 1680, clicked: 672, sent_at: '2026-02-07' },
+            { tenant_id: 1, tenant_name: 'サンプル企業A', title: 'ポイント2倍キャンペーン', sent: 5000, opened: 1250, clicked: 375, sent_at: '2026-02-01' },
+            { tenant_id: 1, tenant_name: 'サンプル企業A', title: 'ウィンターセール開始', sent: 4900, opened: 1715, clicked: 588, sent_at: '2026-01-25' },
+            { tenant_id: 2, tenant_name: 'サンプル企業B', title: 'メンテナンスのお知らせ', sent: 900, opened: 360, clicked: 72, sent_at: '2026-02-12' },
+            { tenant_id: 2, tenant_name: 'サンプル企業B', title: '新機能リリース', sent: 850, opened: 340, clicked: 119, sent_at: '2026-02-05' },
+            { tenant_id: 2, tenant_name: 'サンプル企業B', title: '会員限定クーポン', sent: 880, opened: 396, clicked: 158, sent_at: '2026-01-30' },
+            { tenant_id: 3, tenant_name: 'サンプル企業C', title: '春の大感謝祭', sent: 28000, opened: 9800, clicked: 4200, sent_at: '2026-02-14' },
+            { tenant_id: 3, tenant_name: 'サンプル企業C', title: '本日限りのフラッシュセール', sent: 30000, opened: 12000, clicked: 5400, sent_at: '2026-02-08' },
+            { tenant_id: 3, tenant_name: 'サンプル企業C', title: 'アプリアップデート完了', sent: 25000, opened: 7500, clicked: 2250, sent_at: '2026-02-02' },
+            { tenant_id: 3, tenant_name: 'サンプル企業C', title: '新規会員登録キャンペーン', sent: 27000, opened: 10800, clicked: 3510, sent_at: '2026-01-28' },
+        ];
+
         async function loadData() {
             await Promise.all([
                 loadTenants(),
@@ -454,6 +651,11 @@
                     }
                 ];
                 renderTenants();
+                // CTR分析タブの顧客セレクトを更新して初期描画
+                const sel = document.getElementById('analyticsTenantFilter');
+                sel.innerHTML = '<option value="">全顧客</option>' +
+                    tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+                renderAnalytics();
             }, 500);
         }
 
@@ -537,6 +739,83 @@
             document.getElementById('activeTenants').textContent = activeTenants;
             document.getElementById('pendingTasks').textContent = pendingTasks;
             document.getElementById('monthlySent').textContent = monthlySent.toLocaleString();
+        }
+
+        function periodDays(period) {
+            if (period === '7d')  return 7;
+            if (period === '90d') return 90;
+            return 30;
+        }
+
+        function renderAnalytics() {
+            const tenantId  = parseInt(document.getElementById('analyticsTenantFilter').value) || null;
+            const period    = document.getElementById('analyticsPeriodFilter').value;
+            const cutoff    = new Date();
+            cutoff.setDate(cutoff.getDate() - periodDays(period));
+
+            // 期間・テナントフィルター
+            let rows = analyticsNotifications.filter(n => {
+                const d = new Date(n.sent_at);
+                if (d < cutoff) return false;
+                if (tenantId && n.tenant_id !== tenantId) return false;
+                return true;
+            });
+
+            // サマリー計算
+            const totalSent    = rows.reduce((s, n) => s + n.sent, 0);
+            const totalOpened  = rows.reduce((s, n) => s + n.opened, 0);
+            const totalClicked = rows.reduce((s, n) => s + n.clicked, 0);
+            const avgOpen = totalSent > 0 ? (totalOpened  / totalSent * 100).toFixed(1) : '0.0';
+            const avgCtr  = totalSent > 0 ? (totalClicked / totalSent * 100).toFixed(1) : '0.0';
+
+            document.getElementById('statAvgCtr').textContent    = avgCtr + '%';
+            document.getElementById('statAvgOpen').textContent   = avgOpen + '%';
+            document.getElementById('statTotalSent').textContent = totalSent.toLocaleString();
+            document.getElementById('statTotalClicked').textContent = totalClicked.toLocaleString();
+
+            // 色分けクラス
+            function ctrClass(val) {
+                if (val >= 10) return 'ctr-good';
+                if (val >= 5)  return 'ctr-mid';
+                return 'ctr-low';
+            }
+
+            // テーブル描画
+            const tbody = document.getElementById('analyticsTableBody');
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#aaa;">データがありません</td></tr>';
+                return;
+            }
+
+            const maxSent = Math.max(...rows.map(n => n.sent));
+
+            tbody.innerHTML = rows.map(n => {
+                const openRate = n.sent > 0 ? (n.opened  / n.sent * 100).toFixed(1) : '0.0';
+                const ctr      = n.sent > 0 ? (n.clicked / n.sent * 100).toFixed(1) : '0.0';
+                const openPct  = n.sent > 0 ? (n.opened  / n.sent * 100) : 0;
+                const ctrPct   = n.sent > 0 ? (n.clicked / n.sent * 100) : 0;
+                return `
+                <tr>
+                    <td><span class="tenant-badge">${n.tenant_name}</span></td>
+                    <td>${n.title}</td>
+                    <td>${n.sent.toLocaleString()}</td>
+                    <td>${n.opened.toLocaleString()}</td>
+                    <td>${n.clicked.toLocaleString()}</td>
+                    <td>
+                        <div class="bar-wrap">
+                            <div class="bar-bg"><div class="bar-fill open-color" style="width:${Math.min(openPct * 2, 100)}%"></div></div>
+                            <span style="min-width:42px;text-align:right">${openRate}%</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="bar-wrap">
+                            <div class="bar-bg"><div class="bar-fill ctr-color" style="width:${Math.min(ctrPct * 5, 100)}%"></div></div>
+                            <span class="${ctrClass(parseFloat(ctr))}" style="min-width:42px;text-align:right;font-weight:600">${ctr}%</span>
+                        </div>
+                    </td>
+                    <td style="color:#888">${n.sent_at}</td>
+                </tr>`;
+            }).join('');
         }
 
         function renderTenants() {
@@ -736,7 +1015,12 @@
         }
 
         // 初期読み込み
-        loadData();
+        async function onAdminReady(user) {
+            await loadData();
+        }
     </script>
+    </div><!-- end admin-page -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="/admin/admin.js"></script>
 </body>
 </html>
