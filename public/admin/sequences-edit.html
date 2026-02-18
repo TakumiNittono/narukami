@@ -71,7 +71,7 @@
 
         async function onAdminReady(user) {
             try {
-                const result = await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname));
+                const result = await (await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname))).json();
                 if (result.status === 'ok' && result.data.tenant) {
                     pageTenantId = result.data.tenant.id;
                 }
@@ -96,7 +96,7 @@
                     ? `/api/step-sequences?action=get&id=${sequenceId}&tenant_id=${pageTenantId}`
                     : `/api/step-sequences?action=get&id=${sequenceId}`;
 
-                const result = await apiGet(url);
+                const result = await (await apiGet(url)).json();
 
                 if (result.status === 'ok' && result.data) {
                     const seq = result.data;

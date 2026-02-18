@@ -389,7 +389,7 @@
 
         async function onAdminReady(user) {
             try {
-                const result = await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname));
+                const result = await (await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname))).json();
                 if (result.status === 'ok' && result.data.tenant) {
                     pageTenantId = result.data.tenant.id;
                 }
@@ -405,7 +405,7 @@
                     ? `/api/users?action=list&page=${page}&limit=50&tenant_id=${pageTenantId}`
                     : `/api/users?action=list&page=${page}&limit=50`;
 
-                const result = await apiGet(url);
+                const result = await (await apiGet(url)).json();
 
                 if (result.status !== 'ok') {
                     throw new Error(result.message || 'Failed to load users');
@@ -526,7 +526,7 @@
                     ? `/api/users?action=detail&user_id=${userId}&tenant_id=${pageTenantId}`
                     : `/api/users?action=detail&user_id=${userId}`;
 
-                const result = await apiGet(detailUrl);
+                const result = await (await apiGet(detailUrl)).json();
 
                 if (result.status !== 'ok') {
                     throw new Error(result.message || 'Failed to load user detail');
@@ -542,7 +542,7 @@
 
                 let eventsHtml = '<div class="loading">読み込み中...</div>';
                 try {
-                    const eventsResult = await apiGet(eventsUrl);
+                    const eventsResult = await (await apiGet(eventsUrl)).json();
                     if (eventsResult.status === 'ok' && eventsResult.data.events.length > 0) {
                         eventsHtml = eventsResult.data.events.map(event => {
                             const eventDate = new Date(event.created_at).toLocaleString('ja-JP');

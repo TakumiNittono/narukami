@@ -64,7 +64,7 @@
 
         async function onAdminReady(user) {
             try {
-                const result = await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname));
+                const result = await (await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname))).json();
                 if (result.status === 'ok' && result.data.tenant) {
                     pageTenantId = result.data.tenant.id;
                 }
