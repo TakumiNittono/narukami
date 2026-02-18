@@ -252,6 +252,31 @@ function updateTrend(elementId, changePct) {
 }
 
 // ==========================================
+// Confirm dialog (replaces browser confirm())
+// ==========================================
+function confirmDialog(title, message, confirmLabel = '実行', danger = false) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9998;display:flex;align-items:center;justify-content:center;';
+        const confirmColor = danger ? '#ef4444' : '#6366F1';
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.18);">
+                <h3 style="margin:0 0 10px;font-size:17px;color:#1a1a2e;">${escapeHtml(title)}</h3>
+                <p style="margin:0 0 24px;color:#555;font-size:14px;line-height:1.65;">${escapeHtml(message)}</p>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button id="_cd_cancel" style="padding:8px 20px;border:1px solid #e2e8f0;background:#fff;border-radius:8px;cursor:pointer;font-size:14px;color:#555;">キャンセル</button>
+                    <button id="_cd_ok" style="padding:8px 20px;background:${confirmColor};color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">${escapeHtml(confirmLabel)}</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const close = (result) => { overlay.remove(); resolve(result); };
+        overlay.querySelector('#_cd_ok').addEventListener('click', () => close(true));
+        overlay.querySelector('#_cd_cancel').addEventListener('click', () => close(false));
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+    });
+}
+
+// ==========================================
 // Boot
 // ==========================================
 document.addEventListener('DOMContentLoaded', initAdmin);

@@ -603,8 +603,7 @@
         }
 
         async function deleteUser(userId) {
-            const msg = `ユーザー #${userId} を削除しますか？\n\nこの操作は取り消せません。通知履歴・ステップ配信進捗も削除されます。`;
-            if (!confirm(msg)) return;
+            if (!await confirmDialog('ユーザー削除', `ユーザー #${userId} を削除しますか？\nこの操作は取り消せません。通知履歴・ステップ配信進捗も削除されます。`, '削除する', true)) return;
 
             try {
                 const body = { user_id: userId };

@@ -163,7 +163,7 @@
             document.querySelectorAll('.btn-delete').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = e.target.dataset.id;
-                    if (confirm('このステップ配信シーケンスを削除してもよろしいですか？')) {
+                    if (await confirmDialog('シーケンス削除', 'このステップ配信シーケンスを削除しますか？\nこの操作は取り消せません。', '削除する', true)) {
                         await deleteSequence(id);
                     }
                 });

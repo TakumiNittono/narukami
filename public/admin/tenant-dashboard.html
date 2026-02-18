@@ -378,41 +378,23 @@
         async function loadTenantInfo() {
             try {
                 const domain = getCurrentDomain();
-                console.log('Loading tenant info for domain:', domain);
-
                 const res = await apiGet(`/api/stats?domain=${encodeURIComponent(domain)}`);
-                
-                console.log('Tenant API response status:', res.status);
-                
                 if (res.ok) {
                     const result = await res.json();
-                    console.log('Tenant API result:', result);
-                    
                     if (result.status === 'ok' && result.data.tenant) {
                         currentTenant = result.data.tenant;
                         tenantId = currentTenant.id;
-                        
-                        console.log('Tenant loaded:', currentTenant);
-                        console.log('Tenant ID:', tenantId);
-                        console.log('Tenant stats:', currentTenant.stats);
-                        
                         document.getElementById('tenantName').textContent = currentTenant.name;
                         document.getElementById('tenantDomain').textContent = currentTenant.domain || domain;
                         document.getElementById('tenantPlan').textContent = (currentTenant.plan || 'basic').toUpperCase();
                     } else {
-                        console.warn('Tenant not found in response, using mock data');
-                        // テナントが見つからない場合、モックデータを表示
                         showMockData();
                     }
                 } else {
-                    const errorText = await res.text();
-                    console.error('Tenant API error:', res.status, errorText);
-                    // エラーの場合、モックデータを表示
                     showMockData();
                 }
             } catch (err) {
                 console.error('Failed to load tenant info:', err);
-                // エラーの場合、モックデータを表示
                 showMockData();
             }
         }
@@ -446,20 +428,10 @@
             
             try {
                 const url = `/api/analytics?type=overview&tenant_id=${tenantId}`;
-                console.log('Loading KPIs for tenant_id:', tenantId);
-                console.log('KPI API URL:', url);
-                
                 const res = await apiGet(url);
-                console.log('KPI API response status:', res ? res.status : 'null');
-                
                 if (res.ok) {
                     const result = await res.json();
-                    console.log('KPI API result:', result);
                     const data = result.data;
-                    
-                    console.log('KPI data:', data);
-                    console.log('Total users:', data.total_users);
-                    console.log('New users this week:', data.new_users_this_week);
                     
                     // KPIカード更新
                     document.getElementById('kpiTotalUsers').textContent = formatNumber(data.total_users || 0);
@@ -610,7 +582,7 @@
         
         // 今すぐ送信
         async function sendNow(notificationId, event) {
-            if (!confirm('この通知を今すぐ送信しますか？')) {
+            if (!await confirmDialog('今すぐ送信', 'この通知を今すぐ全ユーザーに送信しますか？', '送信する')) {
                 return;
             }
 

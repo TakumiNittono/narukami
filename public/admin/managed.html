@@ -344,10 +344,10 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('tenants')">顧客一覧</button>
-            <button class="tab" onclick="switchTab('tasks')">タスク管理</button>
-            <button class="tab" onclick="switchTab('reports')">レポート</button>
-            <button class="tab" onclick="switchTab('analytics')">CTR分析</button>
+            <button class="tab active" onclick="switchTab('tenants', this)">顧客一覧</button>
+            <button class="tab" onclick="switchTab('tasks', this)">タスク管理</button>
+            <button class="tab" onclick="switchTab('reports', this)">レポート</button>
+            <button class="tab" onclick="switchTab('analytics', this)">CTR分析</button>
         </div>
 
         <div id="tenants-tab" class="tab-content active">
@@ -561,6 +561,28 @@
                     <button type="submit" class="btn btn-primary">作成</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- 顧客詳細モーダル -->
+    <div id="viewTenantModal" class="modal">
+        <div class="modal-content">
+            <h2>顧客詳細</h2>
+            <div id="viewTenantBody"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:20px;">
+                <button class="btn btn-secondary" onclick="closeModal('viewTenantModal')">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- レポート詳細モーダル -->
+    <div id="viewReportModal" class="modal">
+        <div class="modal-content">
+            <h2 id="viewReportTitle"></h2>
+            <div id="viewReportBody"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:20px;">
+                <button class="btn btn-secondary" onclick="closeModal('viewReportModal')">閉じる</button>
+            </div>
         </div>
     </div>
 
@@ -797,11 +819,10 @@
             `).join('');
         }
 
-        function switchTab(tabName) {
+        function switchTab(tabName, el) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            event.target.classList.add('active');
+            el.classList.add('active');
             document.getElementById(`${tabName}-tab`).classList.add('active');
         }
 
@@ -893,7 +914,7 @@
         });
 
         async function completeTask(taskId) {
-            if (!confirm('このタスクを完了にしますか？')) return;
+            if (!await confirmDialog('タスク完了', 'このタスクを完了にしますか？', '完了にする')) return;
 
             try {
                 const res = await apiPost('/api/tasks?action=complete', { task_id: taskId });
@@ -910,16 +931,39 @@
         }
 
         function viewTenant(tenantId) {
-            const tenant = tenants.find(t => t.id === tenantId);
-            if (!tenant) return;
-            const msg = `顧客名: ${tenant.name}\nプラン: ${tenant.plan}\nユーザー数: ${tenant.stats?.user_count || 0}\n通知数: ${tenant.stats?.notification_count || 0}\n未対応タスク: ${tenant.stats?.pending_task_count || 0}`;
-            toast('info', '顧客詳細', msg, 6000);
+            const t = tenants.find(t => t.id === tenantId);
+            if (!t) return;
+            const planLabel = { basic: 'Basic (¥10万/月)', pro: 'Pro (¥25万/月)', enterprise: 'Enterprise (¥50万/月)' }[t.plan] || t.plan;
+            document.getElementById('viewTenantBody').innerHTML = `
+                <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;width:40%">顧客名</td><td style="padding:10px 0;font-weight:600;">${escapeHtml(t.name)}</td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">プラン</td><td style="padding:10px 0;">${escapeHtml(planLabel)}</td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">ステータス</td><td style="padding:10px 0;"><span class="status-badge status-${t.status}">${escapeHtml(t.status)}</span></td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">月間上限</td><td style="padding:10px 0;">${(t.monthly_limit||0).toLocaleString()} 件</td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">契約開始</td><td style="padding:10px 0;">${t.contract_start_date || '—'}</td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">契約終了</td><td style="padding:10px 0;">${t.contract_end_date || '—'}</td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">ユーザー数</td><td style="padding:10px 0;">${(t.stats?.user_count||0).toLocaleString()}</td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">送信済み通知数</td><td style="padding:10px 0;">${(t.stats?.notification_count||0).toLocaleString()}</td></tr>
+                    <tr><td style="padding:10px 0;color:#666;">未対応タスク</td><td style="padding:10px 0;">${t.stats?.pending_task_count||0} 件</td></tr>
+                </table>`;
+            document.getElementById('viewTenantModal').classList.add('active');
         }
 
         function viewReport(reportId) {
-            const report = reports.find(r => r.id === reportId);
-            if (!report) return;
-            toast('info', report.title, `期間: ${report.period_start} ～ ${report.period_end}`, 6000);
+            const r = reports.find(r => r.id === reportId);
+            if (!r) return;
+            const typeLabel = { weekly: '週次', monthly: '月次', custom: 'カスタム' }[r.report_type] || r.report_type;
+            const tenantName = tenants.find(t => t.id === r.tenant_id)?.name || r.tenant_name || '—';
+            document.getElementById('viewReportTitle').textContent = r.title;
+            document.getElementById('viewReportBody').innerHTML = `
+                <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;">
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;width:40%">顧客</td><td style="padding:10px 0;font-weight:600;">${escapeHtml(tenantName)}</td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">タイプ</td><td style="padding:10px 0;">${escapeHtml(typeLabel)}</td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">期間</td><td style="padding:10px 0;">${escapeHtml(r.period_start)} ～ ${escapeHtml(r.period_end)}</td></tr>
+                    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 0;color:#666;">作成日</td><td style="padding:10px 0;">${r.created_at ? new Date(r.created_at).toLocaleDateString('ja-JP') : '—'}</td></tr>
+                </table>
+                ${r.summary ? `<div style="background:#f8f9fa;border-radius:8px;padding:16px;font-size:14px;color:#444;line-height:1.7;">${escapeHtml(r.summary)}</div>` : ''}`;
+            document.getElementById('viewReportModal').classList.add('active');
         }
 
         // 初期読み込み
