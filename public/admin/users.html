@@ -319,10 +319,6 @@
                     <div class="value" id="totalUsers">-</div>
                 </div>
                 <div class="stat-card">
-                    <h3>平均開封率</h3>
-                    <div class="value" id="avgOpenRate">-</div>
-                </div>
-                <div class="stat-card">
                     <h3>平均CTR</h3>
                     <div class="value" id="avgCTR">-</div>
                 </div>
@@ -336,17 +332,15 @@
                             <th>ユーザーID</th>
                             <th>デバイス</th>
                             <th>登録日</th>
-                            <th>受信数</th>
                             <th>開封数</th>
                             <th>クリック数</th>
-                            <th>開封率</th>
                             <th>CTR</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
                         <tr>
-                            <td colspan="9" class="loading">読み込み中...</td>
+                            <td colspan="7" class="loading">読み込み中...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -427,7 +421,7 @@
             } catch (err) {
                 console.error('Error loading users:', err);
                 document.getElementById('usersTableBody').innerHTML =
-                    '<tr><td colspan="9" style="text-align: center; color: #dc3545;">エラー: ' + err.message + '</td></tr>';
+                    '<tr><td colspan="7" style="text-align: center; color: #dc3545;">エラー: ' + err.message + '</td></tr>';
             }
         }
 
@@ -435,17 +429,13 @@
             document.getElementById('totalUsers').textContent = totalUsers.toLocaleString();
 
             if (users.length === 0) {
-                document.getElementById('avgOpenRate').textContent = '0.0%';
                 document.getElementById('avgCTR').textContent = '0.0%';
                 return;
             }
 
-            const totalOpenRate = users.reduce((sum, u) => sum + (u.stats.open_rate || 0), 0);
             const totalCTR = users.reduce((sum, u) => sum + (u.stats.ctr || 0), 0);
-            const avgOpenRate = (totalOpenRate / users.length).toFixed(1);
             const avgCTR = (totalCTR / users.length).toFixed(1);
 
-            document.getElementById('avgOpenRate').textContent = avgOpenRate + '%';
             document.getElementById('avgCTR').textContent = avgCTR + '%';
         }
 
@@ -453,13 +443,12 @@
             const tbody = document.getElementById('usersTableBody');
 
             if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #666;">ユーザーが見つかりません</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666;">ユーザーが見つかりません</td></tr>';
                 return;
             }
 
             tbody.innerHTML = users.map(user => {
                 const createdDate = new Date(user.created_at).toLocaleDateString('ja-JP');
-                const openRate = user.stats.open_rate.toFixed(1);
                 const ctr = user.stats.ctr.toFixed(1);
 
                 return `
@@ -467,16 +456,10 @@
                         <td><span class="user-id">#${user.id}</span></td>
                         <td>${escapeHtml(user.device_info)}</td>
                         <td>${createdDate}</td>
-                        <td>${user.stats.total_sent}</td>
                         <td>${user.stats.total_opened}</td>
                         <td>${user.stats.total_clicked}</td>
                         <td>
-                            <span class="badge ${user.stats.open_rate >= 50 ? 'badge-success' : user.stats.open_rate >= 20 ? 'badge-info' : 'badge-warning'}">
-                                ${openRate}%
-                            </span>
-                        </td>
-                        <td>
-                            <span class="badge ${user.stats.ctr >= 10 ? 'badge-success' : user.stats.ctr >= 5 ? 'badge-info' : 'badge-warning'}">
+                            <span class="badge ${user.stats.ctr >= 50 ? 'badge-success' : user.stats.ctr >= 20 ? 'badge-info' : 'badge-warning'}">
                                 ${ctr}%
                             </span>
                         </td>
