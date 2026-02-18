@@ -102,7 +102,8 @@ async function handleList(req, res, tenantId) {
             const totalClicked = clickEvents?.length || 0;
 
             const openRate = totalSent > 0 ? ((totalOpened / totalSent) * 100).toFixed(1) : '0.0';
-            const ctr = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0.0';
+            const ctrDenom = totalSent > 0 ? totalSent : totalOpened;
+            const ctr = ctrDenom > 0 ? ((totalClicked / ctrDenom) * 100).toFixed(1) : '0.0';
 
             // fcm_tokenからデバイス情報を抽出（可能な場合）
             let deviceInfo = 'Unknown';
@@ -203,7 +204,8 @@ async function handleDetail(req, res, tenantId) {
     const totalClicked = clickEvents?.length || 0;
 
     const openRate = totalSent > 0 ? ((totalOpened / totalSent) * 100).toFixed(1) : '0.0';
-    const ctr = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : '0.0';
+    const ctrDenom = totalSent > 0 ? totalSent : totalOpened;
+    const ctr = ctrDenom > 0 ? ((totalClicked / ctrDenom) * 100).toFixed(1) : '0.0';
 
     // デバイス情報を抽出
     let deviceInfo = 'Unknown';
