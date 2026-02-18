@@ -319,9 +319,6 @@
     <div id="admin-nav-root"></div>
     <div class="admin-page">
     <div class="managed-container">
-        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px; margin-bottom: 20px; color: #856404;">
-            <strong>📌 モックモード</strong> - この画面はUI表示のみです。API数制限のため、モックデータで動作しています。
-        </div>
         <div class="header-section">
             <h1>フルマネージド管理画面</h1>
             <button class="btn btn-primary" onclick="showCreateTenantModal()">新規顧客追加</button>
@@ -381,7 +378,7 @@
             <!-- フィルターバー -->
             <div class="analytics-filter-bar">
                 <label>顧客:</label>
-                <select id="analyticsTenantFilter" onchange="renderAnalytics()">
+                <select id="analyticsTenantFilter" onchange="loadAnalytics()">
                     <option value="">全顧客</option>
                 </select>
                 <label style="margin-left: 8px;">期間:</label>
@@ -568,30 +565,10 @@
     </div>
 
     <script>
-        // モックモード（API数制限のため、UI表示のみ）
-        const MOCK_MODE = true;
-        
-        // パスワード入力は不要（モックモード）
-        const ADMIN_PASSWORD = 'mock';
-
         let tenants = [];
         let tasks = [];
         let reports = [];
-
-        // CTR分析用モックデータ（テナント別・通知別）
-        const analyticsNotifications = [
-            { tenant_id: 1, tenant_name: 'サンプル企業A', title: '新商品発売のお知らせ', sent: 5200, opened: 1430, clicked: 546, sent_at: '2026-02-10' },
-            { tenant_id: 1, tenant_name: 'サンプル企業A', title: '週末限定セール', sent: 4800, opened: 1680, clicked: 672, sent_at: '2026-02-07' },
-            { tenant_id: 1, tenant_name: 'サンプル企業A', title: 'ポイント2倍キャンペーン', sent: 5000, opened: 1250, clicked: 375, sent_at: '2026-02-01' },
-            { tenant_id: 1, tenant_name: 'サンプル企業A', title: 'ウィンターセール開始', sent: 4900, opened: 1715, clicked: 588, sent_at: '2026-01-25' },
-            { tenant_id: 2, tenant_name: 'サンプル企業B', title: 'メンテナンスのお知らせ', sent: 900, opened: 360, clicked: 72, sent_at: '2026-02-12' },
-            { tenant_id: 2, tenant_name: 'サンプル企業B', title: '新機能リリース', sent: 850, opened: 340, clicked: 119, sent_at: '2026-02-05' },
-            { tenant_id: 2, tenant_name: 'サンプル企業B', title: '会員限定クーポン', sent: 880, opened: 396, clicked: 158, sent_at: '2026-01-30' },
-            { tenant_id: 3, tenant_name: 'サンプル企業C', title: '春の大感謝祭', sent: 28000, opened: 9800, clicked: 4200, sent_at: '2026-02-14' },
-            { tenant_id: 3, tenant_name: 'サンプル企業C', title: '本日限りのフラッシュセール', sent: 30000, opened: 12000, clicked: 5400, sent_at: '2026-02-08' },
-            { tenant_id: 3, tenant_name: 'サンプル企業C', title: 'アプリアップデート完了', sent: 25000, opened: 7500, clicked: 2250, sent_at: '2026-02-02' },
-            { tenant_id: 3, tenant_name: 'サンプル企業C', title: '新規会員登録キャンペーン', sent: 27000, opened: 10800, clicked: 3510, sent_at: '2026-01-28' },
-        ];
+        let analyticsData = [];
 
         async function loadData() {
             await Promise.all([
@@ -602,143 +579,78 @@
             ]);
         }
 
-        // モックデータ（UI表示用）
         async function loadTenants() {
-            // API呼び出しをモックデータに置き換え（API数制限のため）
-            setTimeout(() => {
-                tenants = [
-                    {
-                        id: 1,
-                        name: 'サンプル企業A',
-                        plan: 'pro',
-                        monthly_fee: 250000,
-                        monthly_sent_count: 45000,
-                        monthly_limit: 100000,
-                        status: 'active',
-                        stats: {
-                            user_count: 1250,
-                            notification_count: 45,
-                            pending_task_count: 3
-                        }
-                    },
-                    {
-                        id: 2,
-                        name: 'サンプル企業B',
-                        plan: 'basic',
-                        monthly_fee: 100000,
-                        monthly_sent_count: 8500,
-                        monthly_limit: 10000,
-                        status: 'active',
-                        stats: {
-                            user_count: 320,
-                            notification_count: 12,
-                            pending_task_count: 1
-                        }
-                    },
-                    {
-                        id: 3,
-                        name: 'サンプル企業C',
-                        plan: 'enterprise',
-                        monthly_fee: 500000,
-                        monthly_sent_count: 250000,
-                        monthly_limit: 999999999,
-                        status: 'active',
-                        stats: {
-                            user_count: 5600,
-                            notification_count: 128,
-                            pending_task_count: 5
-                        }
-                    }
-                ];
+            try {
+                const res = await apiGet('/api/tenants?action=list');
+                const result = await res.json();
+                tenants = result.data || [];
                 renderTenants();
                 // CTR分析タブの顧客セレクトを更新して初期描画
                 const sel = document.getElementById('analyticsTenantFilter');
                 sel.innerHTML = '<option value="">全顧客</option>' +
                     tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-                renderAnalytics();
-            }, 500);
+                await loadAnalytics();
+            } catch (err) {
+                console.error('loadTenants error:', err);
+            }
         }
 
         async function loadTasks() {
-            // API呼び出しをモックデータに置き換え（API数制限のため）
-            setTimeout(() => {
-                tasks = [
-                    {
-                        id: 1,
-                        tenant_id: 1,
-                        tenant_name: 'サンプル企業A',
-                        task_type: 'notification_create',
-                        title: '新商品発売通知を作成',
-                        description: '来週発売の新商品の通知を作成する必要があります',
-                        status: 'pending',
-                        priority: 'high',
-                        due_date: '2026-02-15'
-                    },
-                    {
-                        id: 2,
-                        tenant_id: 2,
-                        tenant_name: 'サンプル企業B',
-                        task_type: 'step_sequence_create',
-                        title: 'ウェルカムシーケンスの設計',
-                        description: '新規ユーザー向けのステップ配信を設計',
-                        status: 'in_progress',
-                        priority: 'normal',
-                        due_date: '2026-02-20'
-                    },
-                    {
-                        id: 3,
-                        tenant_id: 1,
-                        tenant_name: 'サンプル企業A',
-                        task_type: 'report_create',
-                        title: '1月の月次レポート作成',
-                        description: '1月のパフォーマンスレポートを作成',
-                        status: 'completed',
-                        priority: 'normal',
-                        due_date: '2026-02-05',
-                        completed_at: '2026-02-05T10:00:00Z'
-                    }
-                ];
+            try {
+                const res = await apiGet('/api/tasks?action=list');
+                tasks = (await res.json()).data || [];
                 renderTasks();
-            }, 500);
+            } catch (err) {
+                console.error('loadTasks error:', err);
+            }
         }
 
         async function loadReports() {
-            // API呼び出しをモックデータに置き換え（API数制限のため）
-            setTimeout(() => {
-                reports = [
-                    {
-                        id: 1,
-                        tenant_id: 1,
-                        report_type: 'monthly',
-                        period_start: '2026-01-01',
-                        period_end: '2026-01-31',
-                        title: '2026年1月 月次レポート',
-                        summary: '1月の通知配信パフォーマンスをまとめました。'
-                    },
-                    {
-                        id: 2,
-                        tenant_id: 2,
-                        report_type: 'monthly',
-                        period_start: '2026-01-01',
-                        period_end: '2026-01-31',
-                        title: '2026年1月 月次レポート',
-                        summary: '1月の通知配信パフォーマンスをまとめました。'
-                    }
-                ];
+            try {
+                const res = await apiGet('/api/reports?action=list');
+                reports = (await res.json()).data || [];
                 renderReports();
-            }, 500);
+            } catch (err) {
+                console.error('loadReports error:', err);
+            }
         }
 
         async function loadStats() {
-            const totalTenants = tenants.length;
-            const activeTenants = tenants.filter(t => t.status === 'active').length;
-            const pendingTasks = tasks.filter(t => ['pending', 'in_progress'].includes(t.status)).length;
-            const monthlySent = tenants.reduce((sum, t) => sum + (t.monthly_sent_count || 0), 0);
+            try {
+                const res = await apiGet('/api/tenants?action=stats');
+                const s = (await res.json()).data || {};
+                document.getElementById('totalTenants').textContent = s.total_tenants || 0;
+                document.getElementById('activeTenants').textContent = s.active_tenants || 0;
+                document.getElementById('pendingTasks').textContent = s.pending_tasks || 0;
+                document.getElementById('monthlySent').textContent = (s.monthly_sent || 0).toLocaleString();
+            } catch (err) {
+                console.error('loadStats error:', err);
+            }
+        }
 
-            document.getElementById('totalTenants').textContent = totalTenants;
-            document.getElementById('activeTenants').textContent = activeTenants;
-            document.getElementById('pendingTasks').textContent = pendingTasks;
-            document.getElementById('monthlySent').textContent = monthlySent.toLocaleString();
+        async function loadAnalytics() {
+            try {
+                const tenantId = document.getElementById('analyticsTenantFilter').value;
+                const url = tenantId
+                    ? `/api/analytics?type=notifications&limit=50&tenant_id=${tenantId}`
+                    : `/api/analytics?type=notifications&limit=50`;
+                const res = await apiGet(url);
+                const notifications = (await res.json()).data || [];
+                analyticsData = notifications.map(n => ({
+                    tenant_id: n.tenant_id,
+                    tenant_name: tenants.find(t => t.id == n.tenant_id)?.name || '-',
+                    title: n.title,
+                    sent: n.performance?.total_sent || 0,
+                    opened: n.performance?.total_opened || 0,
+                    clicked: n.performance?.total_clicked || 0,
+                    sent_at: n.send_at ? n.send_at.slice(0, 10) : '-'
+                }));
+                renderAnalytics();
+            } catch (err) {
+                console.error('loadAnalytics error:', err);
+                analyticsData = [];
+                renderAnalytics();
+            }
         }
 
         function periodDays(period) {
@@ -754,7 +666,7 @@
             cutoff.setDate(cutoff.getDate() - periodDays(period));
 
             // 期間・テナントフィルター
-            let rows = analyticsNotifications.filter(n => {
+            let rows = analyticsData.filter(n => {
                 const d = new Date(n.sent_at);
                 if (d < cutoff) return false;
                 if (tenantId && n.tenant_id !== tenantId) return false;
@@ -920,27 +832,24 @@
             document.getElementById(modalId).classList.remove('active');
         }
 
-        // モックデータで動作（API数制限のため）
         document.getElementById('createTenantForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
 
-            // モック: 新しい顧客を追加
-            const newTenant = {
-                id: tenants.length + 1,
-                name: data.name,
-                plan: data.plan,
-                monthly_fee: data.plan === 'basic' ? 100000 : data.plan === 'pro' ? 250000 : 500000,
-                monthly_sent_count: 0,
-                monthly_limit: parseInt(data.monthly_limit) || 10000,
-                status: 'active',
-                stats: { user_count: 0, notification_count: 0, pending_task_count: 0 }
-            };
-            tenants.push(newTenant);
-            alert('顧客を追加しました（モックデータ）');
-            closeModal('createTenantModal');
-            await loadData();
+            try {
+                const res = await apiPost('/api/tenants?action=create', data);
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    toast('success', '顧客追加', '顧客を追加しました');
+                    closeModal('createTenantModal');
+                    await loadData();
+                } else {
+                    toast('error', 'エラー', result.message);
+                }
+            } catch (err) {
+                toast('error', 'エラー', err.message);
+            }
         });
 
         document.getElementById('createTaskForm').addEventListener('submit', async (e) => {
@@ -948,23 +857,19 @@
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
 
-            // モック: 新しいタスクを追加
-            const tenant = tenants.find(t => t.id == data.tenant_id);
-            const newTask = {
-                id: tasks.length + 1,
-                tenant_id: parseInt(data.tenant_id),
-                tenant_name: tenant ? tenant.name : '不明',
-                task_type: data.task_type,
-                title: data.title,
-                description: data.description || '',
-                status: 'pending',
-                priority: data.priority || 'normal',
-                due_date: data.due_date || null
-            };
-            tasks.push(newTask);
-            alert('タスクを作成しました（モックデータ）');
-            closeModal('createTaskModal');
-            await loadData();
+            try {
+                const res = await apiPost('/api/tasks?action=create', data);
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    toast('success', 'タスク作成', 'タスクを作成しました');
+                    closeModal('createTaskModal');
+                    await loadData();
+                } else {
+                    toast('error', 'エラー', result.message);
+                }
+            } catch (err) {
+                toast('error', 'エラー', err.message);
+            }
         });
 
         document.getElementById('createReportForm').addEventListener('submit', async (e) => {
@@ -972,46 +877,49 @@
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData);
 
-            // モック: 新しいレポートを追加
-            const newReport = {
-                id: reports.length + 1,
-                tenant_id: parseInt(data.tenant_id),
-                report_type: data.report_type,
-                period_start: data.period_start,
-                period_end: data.period_end,
-                title: data.title,
-                summary: data.summary || ''
-            };
-            reports.push(newReport);
-            alert('レポートを作成しました（モックデータ）');
-            closeModal('createReportModal');
-            await loadData();
+            try {
+                const res = await apiPost('/api/reports?action=create', data);
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    toast('success', 'レポート作成', 'レポートを作成しました');
+                    closeModal('createReportModal');
+                    await loadData();
+                } else {
+                    toast('error', 'エラー', result.message);
+                }
+            } catch (err) {
+                toast('error', 'エラー', err.message);
+            }
         });
 
         async function completeTask(taskId) {
             if (!confirm('このタスクを完了にしますか？')) return;
 
-            // モック: タスクを完了にする
-            const task = tasks.find(t => t.id === taskId);
-            if (task) {
-                task.status = 'completed';
-                task.completed_at = new Date().toISOString();
-                await loadData();
+            try {
+                const res = await apiPost('/api/tasks?action=complete', { task_id: taskId });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    toast('success', '完了', 'タスクを完了にしました');
+                    await loadData();
+                } else {
+                    toast('error', 'エラー', result.message);
+                }
+            } catch (err) {
+                toast('error', 'エラー', err.message);
             }
         }
 
         function viewTenant(tenantId) {
             const tenant = tenants.find(t => t.id === tenantId);
-            if (tenant) {
-                alert(`顧客詳細: ${tenant.name}\nプラン: ${tenant.plan}\n月額: ¥${tenant.monthly_fee.toLocaleString()}\nユーザー数: ${tenant.stats?.user_count || 0}\n通知数: ${tenant.stats?.notification_count || 0}\n未対応タスク: ${tenant.stats?.pending_task_count || 0}`);
-            }
+            if (!tenant) return;
+            const msg = `顧客名: ${tenant.name}\nプラン: ${tenant.plan}\nユーザー数: ${tenant.stats?.user_count || 0}\n通知数: ${tenant.stats?.notification_count || 0}\n未対応タスク: ${tenant.stats?.pending_task_count || 0}`;
+            toast('info', '顧客詳細', msg, 6000);
         }
 
         function viewReport(reportId) {
             const report = reports.find(r => r.id === reportId);
-            if (report) {
-                alert(`レポート詳細: ${report.title}\n期間: ${report.period_start} ～ ${report.period_end}\n${report.summary || ''}`);
-            }
+            if (!report) return;
+            toast('info', report.title, `期間: ${report.period_start} ～ ${report.period_end}`, 6000);
         }
 
         // 初期読み込み

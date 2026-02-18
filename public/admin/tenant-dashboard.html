@@ -627,11 +627,11 @@
                 const result = await response.json();
 
                 if (result.status === 'ok') {
-                    alert(`送信完了！\n成功: ${result.sent_count}件\n失敗: ${result.error_count}件`);
+                    toast('success', '送信完了', `成功: ${result.sent_count}件 / 失敗: ${result.error_count}件`);
                     // 通知一覧を再読み込み
                     await loadRecentNotifications();
                 } else {
-                    alert('送信に失敗しました: ' + result.message);
+                    toast('error', '送信失敗', result.message);
                     if (btn) {
                         btn.disabled = false;
                         btn.textContent = originalText;
@@ -639,7 +639,7 @@
                 }
             } catch (error) {
                 console.error('Send now error:', error);
-                alert('エラーが発生しました: ' + error.message);
+                toast('error', 'エラー', error.message);
                 if (btn) {
                     btn.disabled = false;
                     btn.textContent = originalText;
