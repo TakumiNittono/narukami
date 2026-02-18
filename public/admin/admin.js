@@ -12,19 +12,22 @@ let _accessToken = null;
 // ==========================================
 async function initAdmin() {
     try {
-        // 1. Get Supabase config from backend
-        const configRes = await fetch('/api/config');
-        if (!configRes.ok) throw new Error('Failed to load config');
-        const config = await configRes.json();
-
-        if (!config.supabaseUrl || !config.supabaseAnonKey) {
-            throw new Error('Supabase config is missing');
+        // 1. Get Supabase config — キャッシュ優先で即時取得
+        let config = _loadConfigCache();
+        if (!config) {
+            const configRes = await fetch('/api/config');
+            if (!configRes.ok) throw new Error('Failed to load config');
+            config = await configRes.json();
+            if (!config.supabaseUrl || !config.supabaseAnonKey) {
+                throw new Error('Supabase config is missing');
+            }
+            _saveConfigCache(config);
         }
 
-        // 2. Initialise Supabase client (loaded from CDN)
+        // 2. Supabase クライアント初期化
         _supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
-        // 3. Check existing session
+        // 3. セッション確認（ローカルストレージから即時取得・ネットワーク不要）
         const { data: { session } } = await _supabase.auth.getSession();
 
         if (!session) {
@@ -35,21 +38,10 @@ async function initAdmin() {
         _accessToken = session.access_token;
         _currentUser = session.user;
 
-        // 4. Whitelist check via /api/stats
-        const checkRes = await fetch('/api/stats', {
-            headers: { 'Authorization': `Bearer ${_accessToken}` }
-        });
-
-        if (checkRes.status === 401) {
-            await _supabase.auth.signOut();
-            window.location.href = '/admin/login?error=unauthorized';
-            return;
-        }
-
-        // 5. Inject nav bar
+        // 4. ナビ注入 → ページ初期化（ホワイトリスト再確認は不要。
+        //    ログイン時に確認済み。各API呼び出しで401なら自動リダイレクト）
         _injectNav(_currentUser);
 
-        // 6. Call page callback
         if (typeof onAdminReady === 'function') {
             onAdminReady(_currentUser);
         }
@@ -67,8 +59,23 @@ function getToken() { return _accessToken; }
 function getCurrentUser() { return _currentUser; }
 
 async function adminLogout() {
+    sessionStorage.removeItem('_nk_cfg');
     if (_supabase) await _supabase.auth.signOut();
     window.location.href = '/admin/login';
+}
+
+// ==========================================
+// Config cache (sessionStorage)
+// ==========================================
+function _loadConfigCache() {
+    try {
+        const raw = sessionStorage.getItem('_nk_cfg');
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+
+function _saveConfigCache(config) {
+    try { sessionStorage.setItem('_nk_cfg', JSON.stringify(config)); } catch {}
 }
 
 // ==========================================
