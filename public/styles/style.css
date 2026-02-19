@@ -291,6 +291,23 @@ h1 {
     background: #05b34b;
 }
 
+/* === ガイド動画 === */
+.guide-video-wrap {
+    margin-bottom: 24px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #000;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.guide-video-wrap video {
+    display: block;
+    width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    background: #000;
+}
+
 /* === ガイドページ === */
 .guide-steps {
     margin-bottom: 20px;

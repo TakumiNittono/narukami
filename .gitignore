@@ -27,3 +27,4 @@ firebase-service-account.json
 # ログ
 *.log
 .vercel
+*.mov

@@ -49,6 +49,9 @@
         if (isIOS) {
             document.getElementById('guide-subtitle').textContent = 'iPhoneの方はこの手順で追加します';
             content.innerHTML = `
+                <div class="guide-video-wrap">
+                    <video src="/videos/guide-ios.mp4" playsinline muted autoplay loop controls></video>
+                </div>
                 <div class="guide-steps">
                     <div class="step-card">
                         <div class="step-number">1</div>
@@ -80,6 +83,9 @@
         } else if (isAndroid) {
             document.getElementById('guide-subtitle').textContent = 'Androidの方はこの手順で追加します';
             content.innerHTML = `
+                <div class="guide-video-wrap">
+                    <video src="/videos/guide-android.mp4" playsinline muted autoplay loop controls></video>
+                </div>
                 <div class="guide-steps">
                     <div class="step-card">
                         <div class="step-number">1</div>
