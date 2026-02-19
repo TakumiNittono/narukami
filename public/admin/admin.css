@@ -21,6 +21,8 @@
     --kpi-new:    #10B981;
     --kpi-open:   #F59E0B;
     --kpi-ctr:    #06B6D4;
+    --kpi-sent:   #8B5CF6;
+    --kpi-tasks:  #EC4899;
 
     --nav-height: 60px;
     --radius:     8px;
@@ -223,6 +225,8 @@ body {
 .kpi-card--new    { border-left: 4px solid var(--kpi-new); }
 .kpi-card--open   { border-left: 4px solid var(--kpi-open); }
 .kpi-card--ctr    { border-left: 4px solid var(--kpi-ctr); }
+.kpi-card--sent   { border-left: 4px solid var(--kpi-sent); }
+.kpi-card--tasks  { border-left: 4px solid var(--kpi-tasks); }
 
 .kpi-icon-wrap {
     width: 48px;
@@ -239,6 +243,8 @@ body {
 .kpi-card--new    .kpi-icon-wrap { background: #ECFDF5; }
 .kpi-card--open   .kpi-icon-wrap { background: #FFFBEB; }
 .kpi-card--ctr    .kpi-icon-wrap { background: #ECFEFF; }
+.kpi-card--sent   .kpi-icon-wrap { background: #F5F3FF; }
+.kpi-card--tasks  .kpi-icon-wrap { background: #FDF2F8; }
 
 .kpi-body { flex: 1; min-width: 0; }
 

@@ -5,355 +5,131 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理ダッシュボード - NARUKAMI</title>
     <link rel="stylesheet" href="admin.css">
-    <style>
-        :root {
-            --primary-color: #007bff;
-            --secondary-color: #6c757d;
-            --success-color: #28a745;
-            --danger-color: #dc3545;
-            --warning-color: #ffc107;
-            --info-color: #17a2b8;
-        }
-        
-        .tenant-dashboard {
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .tenant-header {
-            background: linear-gradient(135deg, var(--primary-color), #0056b3);
-            color: white;
-            padding: 30px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .tenant-header h1 {
-            margin: 0;
-            font-size: 32px;
-        }
-        
-        .tenant-info {
-            text-align: right;
-        }
-        
-        .tenant-info .plan-badge {
-            display: inline-block;
-            padding: 6px 16px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 20px;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-        
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .dashboard-card {
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .dashboard-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        .dashboard-card h3 {
-            margin: 0 0 16px 0;
-            font-size: 16px;
-            color: #666;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .dashboard-card .value {
-            font-size: 36px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 8px;
-        }
-        
-        .dashboard-card .change {
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .dashboard-card .change.positive {
-            color: var(--success-color);
-        }
-        
-        .dashboard-card .change.negative {
-            color: var(--danger-color);
-        }
-        
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 30px;
-        }
-        
-        .quick-action-btn {
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            color: #333;
-            display: block;
-        }
-        
-        .quick-action-btn:hover {
-            border-color: var(--primary-color);
-            background: #f8f9fa;
-            transform: translateY(-2px);
-        }
-        
-        .quick-action-btn .icon {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-        
-        .quick-action-btn .label {
-            font-weight: bold;
-            font-size: 14px;
-        }
-        
-        .section {
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .section-header h2 {
-            margin: 0;
-            font-size: 20px;
-        }
-        
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            text-decoration: none;
-            display: inline-block;
-        }
-        
-        .btn-primary {
-            background: var(--primary-color);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #0056b3;
-        }
-        
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .table th,
-        .table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        
-        .table th {
-            background: #f8f9fa;
-            font-weight: bold;
-            color: #666;
-        }
-        
-        .table tr:hover {
-            background: #f8f9fa;
-        }
-        
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
-        .badge-success {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .badge-warning {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .badge-danger {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .chart-container {
-            margin-top: 20px;
-            height: 300px;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-    </style>
 </head>
 <body>
     <div id="admin-nav-root"></div>
 
     <div class="admin-page">
-    <div class="tenant-dashboard">
-        <!-- テナントヘッダー -->
-        <div class="tenant-header" id="tenantHeader">
-            <div>
-                <h1 id="tenantName">読み込み中...</h1>
-                <div class="tenant-info">
-                    <div id="tenantDomain"></div>
-                    <span class="plan-badge" id="tenantPlan"></span>
-                </div>
-            </div>
-            <div></div>
-        </div>
+        <div class="admin-container-wide">
 
-        <!-- KPIダッシュボード -->
-        <div class="dashboard-grid">
-            <div class="dashboard-card">
-                <h3>👤 総ユーザー数</h3>
-                <div class="value" id="kpiTotalUsers">-</div>
-                <div class="change" id="kpiUsersChange">-</div>
-            </div>
-            <div class="dashboard-card">
-                <h3>📈 今週の新規登録</h3>
-                <div class="value" id="kpiNewUsers">-</div>
-                <div class="change" id="kpiNewUsersChange">-</div>
-            </div>
-            <div class="dashboard-card">
-                <h3>✉️ 平均開封率</h3>
-                <div class="value" id="kpiOpenRate">-</div>
-                <div class="change" id="kpiOpenRateChange">-</div>
-            </div>
-            <div class="dashboard-card">
-                <h3>🖱 平均CTR</h3>
-                <div class="value" id="kpiCtr">-</div>
-                <div class="change" id="kpiCtrChange">-</div>
-            </div>
-            <div class="dashboard-card">
-                <h3>📊 今月の送信数</h3>
-                <div class="value" id="kpiMonthlySent">-</div>
-                <div class="change" id="kpiMonthlySentChange">-</div>
-            </div>
-            <div class="dashboard-card">
-                <h3>📋 未対応タスク</h3>
-                <div class="value" id="kpiPendingTasks">-</div>
-                <div class="change">-</div>
-            </div>
-        </div>
-
-        <!-- クイックアクション -->
-        <div class="quick-actions">
-            <a href="/admin/create" class="quick-action-btn">
-                <div class="icon">➕</div>
-                <div class="label">通知作成</div>
-            </a>
-            <a href="/admin/sequences" class="quick-action-btn">
-                <div class="icon">📊</div>
-                <div class="label">ステップ配信</div>
-            </a>
-            <a href="/admin/segments" class="quick-action-btn">
-                <div class="icon">👥</div>
-                <div class="label">セグメント管理</div>
-            </a>
-            <a href="/admin/analytics" class="quick-action-btn">
-                <div class="icon">📈</div>
-                <div class="label">詳細分析</div>
-            </a>
-            <a href="/admin/users" class="quick-action-btn">
-                <div class="icon">👤</div>
-                <div class="label">ユーザー管理</div>
-            </a>
-            <a href="/admin/settings" class="quick-action-btn">
-                <div class="icon">⚙️</div>
-                <div class="label">設定</div>
-            </a>
-        </div>
-
-        <!-- 最近の通知 -->
-        <div class="section">
-            <div class="section-header">
-                <h2>📧 最近の通知</h2>
-                <a href="/admin/create" class="btn btn-primary">新規作成</a>
-            </div>
-            <div id="recentNotifications">
-                <div class="loading">読み込み中...</div>
-            </div>
-        </div>
-
-        <!-- ユーザー推移グラフ -->
-        <div class="section">
-            <div class="section-header">
-                <h2>📈 ユーザー推移</h2>
+            <!-- ページヘッダー -->
+            <div class="admin-page-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
                 <div>
-                    <button class="btn" onclick="loadChart('7d')">7日</button>
-                    <button class="btn" onclick="loadChart('30d')">30日</button>
-                    <button class="btn" onclick="loadChart('90d')">90日</button>
+                    <h1 class="admin-page-title" id="tenantName">読み込み中...</h1>
+                    <p class="admin-page-subtitle" id="tenantDomain"></p>
+                </div>
+                <span class="badge badge-primary" id="tenantPlan" style="font-size:13px; padding:5px 14px;"></span>
+            </div>
+
+            <!-- KPIカード -->
+            <div class="kpi-cards">
+                <div class="kpi-card kpi-card--users">
+                    <div class="kpi-icon-wrap">👤</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">総ユーザー数</div>
+                        <div class="kpi-value" id="kpiTotalUsers">-</div>
+                        <div class="kpi-trend" id="kpiUsersChange"></div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-card--new">
+                    <div class="kpi-icon-wrap">✨</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">今週の新規登録</div>
+                        <div class="kpi-value" id="kpiNewUsers">-</div>
+                        <div class="kpi-trend" id="kpiNewUsersChange"></div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-card--open">
+                    <div class="kpi-icon-wrap">✉️</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">平均開封率</div>
+                        <div class="kpi-value" id="kpiOpenRate">-</div>
+                        <div class="kpi-trend" id="kpiOpenRateChange"></div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-card--ctr">
+                    <div class="kpi-icon-wrap">🖱</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">平均CTR</div>
+                        <div class="kpi-value" id="kpiCtr">-</div>
+                        <div class="kpi-trend" id="kpiCtrChange"></div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-card--sent">
+                    <div class="kpi-icon-wrap">📊</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">今月の送信数</div>
+                        <div class="kpi-value" id="kpiMonthlySent">-</div>
+                        <div class="kpi-trend" id="kpiMonthlySentChange"></div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-card--tasks">
+                    <div class="kpi-icon-wrap">📋</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">未対応タスク</div>
+                        <div class="kpi-value" id="kpiPendingTasks">-</div>
+                        <div class="kpi-trend"></div>
+                    </div>
                 </div>
             </div>
-            <div class="chart-container">
-                <canvas id="usersChart"></canvas>
-            </div>
-        </div>
 
-        <!-- 通知パフォーマンス -->
-        <div class="section">
-            <div class="section-header">
-                <h2>📊 通知パフォーマンス（直近10件）</h2>
+            <!-- クイックアクション -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                    <span class="card-title">クイックアクション</span>
+                </div>
+                <div class="card-body" style="display:flex; gap:12px; flex-wrap:wrap;">
+                    <a href="/admin/create" class="btn btn-primary">＋ 通知作成</a>
+                    <a href="/admin/sequences" class="btn btn-secondary">ステップ配信</a>
+                    <a href="/admin/users" class="btn btn-secondary">ユーザー管理</a>
+                    <a href="/admin/managed" class="btn btn-secondary">テナント管理</a>
+                </div>
             </div>
-            <div class="chart-container">
-                <canvas id="notificationsChart"></canvas>
+
+            <!-- 最近の通知 -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                    <span class="card-title">最近の通知</span>
+                    <a href="/admin/create" class="btn btn-primary btn-sm">新規作成</a>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <div class="table-wrap" id="recentNotifications">
+                        <div class="loading">読み込み中...</div>
+                    </div>
+                </div>
             </div>
+
+            <!-- グラフエリア -->
+            <div class="charts-section">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">ユーザー推移</span>
+                        <div class="chart-period">
+                            <button class="period-btn" onclick="setPeriod('7d', this)">7日</button>
+                            <button class="period-btn active" onclick="setPeriod('30d', this)">30日</button>
+                            <button class="period-btn" onclick="setPeriod('90d', this)">90日</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="usersChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">通知パフォーマンス（直近10件）</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="notificationsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-    </div><!-- end admin-page -->
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -364,105 +140,69 @@
         let usersChart = null;
         let notificationsChart = null;
 
-        // Called by admin.js after auth is confirmed
         async function onAdminReady(user) {
             await loadTenantInfo();
-            await loadKPIs();
-            await loadRecentNotifications();
-            await loadChart('30d');
+            await Promise.all([
+                loadKPIs(),
+                loadRecentNotifications(),
+                loadChart('30d')
+            ]);
         }
 
         function getCurrentDomain() { return window.location.hostname; }
 
-        // テナント情報を取得
         async function loadTenantInfo() {
             try {
-                const domain = getCurrentDomain();
-                const res = await apiGet(`/api/stats?domain=${encodeURIComponent(domain)}`);
-                if (res.ok) {
+                const res = await apiGet(`/api/stats?domain=${encodeURIComponent(getCurrentDomain())}`);
+                if (res && res.ok) {
                     const result = await res.json();
                     if (result.status === 'ok' && result.data.tenant) {
                         currentTenant = result.data.tenant;
                         tenantId = currentTenant.id;
                         document.getElementById('tenantName').textContent = currentTenant.name;
-                        document.getElementById('tenantDomain').textContent = currentTenant.domain || domain;
+                        document.getElementById('tenantDomain').textContent = currentTenant.domain || getCurrentDomain();
                         document.getElementById('tenantPlan').textContent = (currentTenant.plan || 'basic').toUpperCase();
-                    } else {
-                        showMockData();
+                        return;
                     }
-                } else {
-                    showMockData();
                 }
             } catch (err) {
                 console.error('Failed to load tenant info:', err);
-                showMockData();
             }
-        }
-        
-        // モックデータを表示（フォールバック）
-        function showMockData() {
-            const domain = getCurrentDomain();
-            currentTenant = {
-                id: 1,
-                name: 'サンプル企業',
-                domain: domain,
-                plan: 'pro',
-                monthly_sent_count: 0,
-                monthly_limit: 100000,
-                status: 'active'
-            };
-            tenantId = currentTenant.id;
-            
-            document.getElementById('tenantName').textContent = currentTenant.name;
-            document.getElementById('tenantDomain').textContent = currentTenant.domain;
-            document.getElementById('tenantPlan').textContent = currentTenant.plan.toUpperCase();
+            showMockData();
         }
 
-        // KPIデータを読み込み
+        function showMockData() {
+            const domain = getCurrentDomain();
+            currentTenant = { id: 1, name: 'サンプル企業', domain, plan: 'pro', monthly_sent_count: 0, monthly_limit: 100000 };
+            tenantId = currentTenant.id;
+            document.getElementById('tenantName').textContent = currentTenant.name;
+            document.getElementById('tenantDomain').textContent = domain;
+            document.getElementById('tenantPlan').textContent = 'PRO';
+        }
+
         async function loadKPIs() {
-            if (!tenantId) {
-                // テナント情報が読み込まれていない場合
-                setTimeout(loadKPIs, 500);
-                return;
-            }
-            
+            if (!tenantId) return;
             try {
-                const url = `/api/analytics?type=overview&tenant_id=${tenantId}`;
-                const res = await apiGet(url);
-                if (res.ok) {
+                const res = await apiGet(`/api/analytics?type=overview&tenant_id=${tenantId}`);
+                if (res && res.ok) {
                     const result = await res.json();
-                    const data = result.data;
-                    
-                    // KPIカード更新
-                    document.getElementById('kpiTotalUsers').textContent = formatNumber(data.total_users || 0);
-                    document.getElementById('kpiUsersChange').textContent = `前週比 ${data.trends?.users_change_pct >= 0 ? '+' : ''}${(data.trends?.users_change_pct || 0).toFixed(1)}%`;
-                    document.getElementById('kpiUsersChange').className = `change ${data.trends?.users_change_pct >= 0 ? 'positive' : 'negative'}`;
-                    
-                    document.getElementById('kpiNewUsers').textContent = formatNumber(data.new_users_this_week || 0);
-                    document.getElementById('kpiNewUsersChange').textContent = `前週比 ${data.trends?.new_users_change_pct >= 0 ? '+' : ''}${(data.trends?.new_users_change_pct || 0).toFixed(1)}%`;
-                    document.getElementById('kpiNewUsersChange').className = `change ${data.trends?.new_users_change_pct >= 0 ? 'positive' : 'negative'}`;
-                    
-                    document.getElementById('kpiOpenRate').textContent = formatPercent(data.avg_open_rate || 0);
-                    document.getElementById('kpiOpenRateChange').textContent = `前週比 ${data.trends?.open_rate_change_pct >= 0 ? '+' : ''}${(data.trends?.open_rate_change_pct || 0).toFixed(1)}%`;
-                    document.getElementById('kpiOpenRateChange').className = `change ${data.trends?.open_rate_change_pct >= 0 ? 'positive' : 'negative'}`;
-                    
-                    document.getElementById('kpiCtr').textContent = formatPercent(data.avg_ctr || 0);
-                    document.getElementById('kpiCtrChange').textContent = `前週比 ${data.trends?.ctr_change_pct >= 0 ? '+' : ''}${(data.trends?.ctr_change_pct || 0).toFixed(1)}%`;
-                    document.getElementById('kpiCtrChange').className = `change ${data.trends?.ctr_change_pct >= 0 ? 'positive' : 'negative'}`;
-                    
-                    // 月間送信数（テナント情報から）
+                    const data = result.data || {};
+
+                    setKpi('kpiTotalUsers', formatNumber(data.total_users || 0), 'kpiUsersChange', data.trends?.users_change_pct);
+                    setKpi('kpiNewUsers', formatNumber(data.new_users_this_week || 0), 'kpiNewUsersChange', data.trends?.new_users_change_pct);
+                    setKpi('kpiOpenRate', formatPercent(data.avg_open_rate || 0), 'kpiOpenRateChange', data.trends?.open_rate_change_pct);
+                    setKpi('kpiCtr', formatPercent(data.avg_ctr || 0), 'kpiCtrChange', data.trends?.ctr_change_pct);
+
                     if (currentTenant) {
                         document.getElementById('kpiMonthlySent').textContent = formatNumber(currentTenant.monthly_sent_count || 0);
                         document.getElementById('kpiMonthlySentChange').textContent = `上限: ${formatNumber(currentTenant.monthly_limit || 0)}`;
                     }
-                    
-                    // 未対応タスク（テナント情報から）
                     if (currentTenant?.stats) {
                         document.getElementById('kpiPendingTasks').textContent = formatNumber(currentTenant.stats.pending_task_count || 0);
+                    } else {
+                        document.getElementById('kpiPendingTasks').textContent = '0';
                     }
                 } else {
-                    const errorText = await res.text();
-                    console.error('KPI API error:', res.status, errorText);
                     showMockKPIs();
                 }
             } catch (err) {
@@ -470,238 +210,175 @@
                 showMockKPIs();
             }
         }
-        
-        function showMockKPIs() {
-            document.getElementById('kpiTotalUsers').textContent = '0';
-            document.getElementById('kpiNewUsers').textContent = '0';
-            document.getElementById('kpiOpenRate').textContent = '0%';
-            document.getElementById('kpiCtr').textContent = '0%';
-            document.getElementById('kpiMonthlySent').textContent = '0';
-            document.getElementById('kpiPendingTasks').textContent = '0';
+
+        function setKpi(valueId, value, trendId, changePct) {
+            document.getElementById(valueId).textContent = value;
+            if (trendId && changePct !== undefined && changePct !== null) {
+                const el = document.getElementById(trendId);
+                const positive = changePct >= 0;
+                el.textContent = `前週比 ${positive ? '+' : ''}${Number(changePct).toFixed(1)}%`;
+                el.className = `kpi-trend ${positive ? 'positive' : 'negative'}`;
+            }
         }
 
-        // 最近の通知を読み込み
+        function showMockKPIs() {
+            ['kpiTotalUsers','kpiNewUsers'].forEach(id => document.getElementById(id).textContent = '0');
+            ['kpiOpenRate','kpiCtr'].forEach(id => document.getElementById(id).textContent = '0%');
+            ['kpiMonthlySent','kpiPendingTasks'].forEach(id => document.getElementById(id).textContent = '0');
+        }
+
         async function loadRecentNotifications() {
-            if (!tenantId) {
-                setTimeout(loadRecentNotifications, 500);
-                return;
-            }
-            
+            if (!tenantId) return;
+            const container = document.getElementById('recentNotifications');
             try {
-                const container = document.getElementById('recentNotifications');
-                
-                // 通知一覧とパフォーマンスデータを取得
-                const [notificationsRes, analyticsRes] = await Promise.all([
+                const [notifRes, analyticsRes] = await Promise.all([
                     apiGet(`/api/notifications/list?tenant_id=${tenantId}`),
                     apiGet(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`)
                 ]);
-                
-                if (notificationsRes.ok && analyticsRes.ok) {
-                    const notificationsResult = await notificationsRes.json();
-                    const analyticsResult = await analyticsRes.json();
-                    
-                    // パフォーマンスデータをマップ
-                    const perfMap = {};
-                    if (analyticsResult.data) {
-                        analyticsResult.data.forEach(item => {
-                            perfMap[item.id] = item.performance;
-                        });
-                    }
-                    
-                    const notifications = (notificationsResult.data || []).slice(0, 10);
-                    
-                    if (notifications.length > 0) {
-                        container.innerHTML = `
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>タイトル</th>
-                                        <th>送信日時</th>
-                                        <th>送信数</th>
-                                        <th>開封率</th>
-                                        <th>CTR</th>
-                                        <th>作成者</th>
-                                        <th>ステータス</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${notifications.map(notif => {
-                                        const perf = perfMap[notif.id] || {
-                                            total_sent: 0,
-                                            open_rate: 0,
-                                            ctr: 0
-                                        };
-                                        const sendDate = notif.send_at ? new Date(notif.send_at).toLocaleString('ja-JP') : '-';
-                                        const isSent = notif.sent || notif.status === 'sent';
-                                        const isFailed = notif.status === 'failed' || notif.status === 'no_target_users';
-                                        const isScheduled = !isSent && !isFailed && notif.status === 'scheduled';
-                                        
-                                        // ステータス表示の決定
-                                        let statusBadge = '';
-                                        if (isSent) {
-                                            statusBadge = '<span class="badge badge-success">送信済</span>';
-                                        } else if (isFailed || notif.status === 'no_target_users') {
-                                            statusBadge = '<span class="badge badge-danger">送信失敗</span>';
-                                        } else if (isScheduled) {
-                                            statusBadge = '<span class="badge badge-warning">予約済</span>';
-                                        } else {
-                                            statusBadge = '<span class="badge badge-warning">予約済</span>';
-                                        }
-                                        
-                                        const createdBy = notif.created_by ? `<div style="font-size: 11px; color: #666;">${escapeHtml(notif.created_by)}</div>` : '<div style="font-size: 11px; color: #999;">-</div>';
-                                        
-                                        return `
-                                            <tr>
-                                                <td>${escapeHtml(notif.title || '')}</td>
-                                                <td>${sendDate}</td>
-                                                <td>${formatNumber(perf.total_sent)}</td>
-                                                <td>${formatPercent(perf.open_rate)}</td>
-                                                <td>${formatPercent(perf.ctr)}</td>
-                                                <td>${createdBy}</td>
-                                                <td>
-                                                    ${statusBadge}
-                                                    ${!isSent && !isFailed ? `<button class="btn btn-small" onclick="sendNow(${notif.id}, event)" style="margin-left: 8px; padding: 4px 8px; font-size: 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">今すぐ送る</button>` : ''}
-                                                </td>
-                                            </tr>
-                                        `;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        `;
-                    } else {
-                        container.innerHTML = '<div class="empty-state">通知がありません</div>';
-                    }
-                } else {
-                    container.innerHTML = '<div class="empty-state">読み込みエラー</div>';
+
+                if (!notifRes || !notifRes.ok) {
+                    container.innerHTML = '<div class="loading">読み込みエラー</div>';
+                    return;
                 }
+
+                const notifResult = await notifRes.json();
+                const analyticsResult = analyticsRes && analyticsRes.ok ? await analyticsRes.json() : { data: [] };
+
+                const perfMap = {};
+                (analyticsResult.data || []).forEach(item => { perfMap[item.id] = item.performance; });
+
+                const notifications = (notifResult.data || []).slice(0, 10);
+
+                if (notifications.length === 0) {
+                    container.innerHTML = '<div class="loading" style="padding:40px;">通知がまだありません</div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>タイトル</th>
+                                <th>送信日時</th>
+                                <th>送信数</th>
+                                <th>開封率</th>
+                                <th>CTR</th>
+                                <th>ステータス</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${notifications.map(notif => {
+                                const perf = perfMap[notif.id] || { total_sent: 0, open_rate: 0, ctr: 0 };
+                                const sendDate = notif.send_at ? new Date(notif.send_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-';
+                                const isSent = notif.sent || notif.status === 'sent';
+                                const isFailed = notif.status === 'failed' || notif.status === 'no_target_users';
+                                let badge = '';
+                                if (isSent)        badge = '<span class="badge badge-success">送信済</span>';
+                                else if (isFailed)  badge = '<span class="badge badge-danger">失敗</span>';
+                                else               badge = '<span class="badge badge-warning">予約済</span>';
+
+                                const sendBtn = (!isSent && !isFailed)
+                                    ? `<button class="btn btn-success btn-sm" onclick="sendNow(${notif.id}, event)">今すぐ送る</button>`
+                                    : '';
+
+                                return `<tr>
+                                    <td style="font-weight:500; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(notif.title || '')}</td>
+                                    <td style="white-space:nowrap; color:var(--color-text-muted);">${sendDate}</td>
+                                    <td>${formatNumber(perf.total_sent)}</td>
+                                    <td>${formatPercent(perf.open_rate)}</td>
+                                    <td>${formatPercent(perf.ctr)}</td>
+                                    <td>${badge}</td>
+                                    <td>${sendBtn}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>`;
             } catch (err) {
                 console.error('Failed to load notifications:', err);
-                document.getElementById('recentNotifications').innerHTML = '<div class="empty-state">読み込みエラー</div>';
+                container.innerHTML = '<div class="loading">読み込みエラー</div>';
             }
         }
-        
-        // 今すぐ送信
-        async function sendNow(notificationId, event) {
-            if (!await confirmDialog('今すぐ送信', 'この通知を今すぐ全ユーザーに送信しますか？', '送信する')) {
-                return;
-            }
 
-            const btn = event ? event.target : document.querySelector(`button[onclick*="sendNow(${notificationId})"]`);
-            const originalText = btn ? btn.textContent : '今すぐ送る';
-            if (btn) {
-                btn.disabled = true;
-                btn.textContent = '送信中...';
-            }
+        async function sendNow(notificationId, event) {
+            if (!await confirmDialog('今すぐ送信', 'この通知を今すぐ全ユーザーに送信しますか？', '送信する')) return;
+
+            const btn = event?.target;
+            if (btn) { btn.disabled = true; btn.textContent = '送信中...'; }
 
             try {
                 const response = await apiPost('/api/notifications/list?action=send-now', { notification_id: notificationId });
-
                 const result = await response.json();
-
                 if (result.status === 'ok') {
                     toast('success', '送信完了', `成功: ${result.sent_count}件 / 失敗: ${result.error_count}件`);
-                    // 通知一覧を再読み込み
                     await loadRecentNotifications();
                 } else {
                     toast('error', '送信失敗', result.message);
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.textContent = originalText;
-                    }
+                    if (btn) { btn.disabled = false; btn.textContent = '今すぐ送る'; }
                 }
             } catch (error) {
-                console.error('Send now error:', error);
                 toast('error', 'エラー', error.message);
-                if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = originalText;
-                }
+                if (btn) { btn.disabled = false; btn.textContent = '今すぐ送る'; }
             }
         }
 
-        // グラフを読み込み
-        // usersChartとnotificationsChartはadmin.jsで既に宣言されているため、再宣言しない
+        function setPeriod(period, btn) {
+            document.querySelectorAll('.chart-period .period-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadChart(period);
+        }
 
         async function loadChart(period) {
-            if (!tenantId) {
-                setTimeout(() => loadChart(period), 500);
-                return;
-            }
-            
+            if (!tenantId) return;
             try {
-                // ユーザー推移グラフ
-                const trendsRes = await apiGet(`/api/analytics?type=trends&metric=users&period=${period}&tenant_id=${tenantId}`);
-                // 通知パフォーマンスグラフ
-                const notificationsRes = await apiGet(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`);
-                
-                if (trendsRes.ok) {
+                const [trendsRes, notifRes] = await Promise.all([
+                    apiGet(`/api/analytics?type=trends&metric=users&period=${period}&tenant_id=${tenantId}`),
+                    apiGet(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`)
+                ]);
+
+                if (trendsRes && trendsRes.ok) {
                     const trendsResult = await trendsRes.json();
                     const dataPoints = trendsResult.data?.data_points || [];
-                    
                     const ctx1 = document.getElementById('usersChart');
                     if (ctx1) {
                         if (usersChart) usersChart.destroy();
-                        
-                        const labels = dataPoints.map(d => {
-                            const date = new Date(d.date);
-                            return `${date.getMonth() + 1}/${date.getDate()}`;
-                        });
-                        const totalData = dataPoints.map(d => d.value || 0);
-                        const newData = dataPoints.map(d => d.new || 0);
-                        
                         usersChart = new Chart(ctx1.getContext('2d'), {
                             type: 'line',
                             data: {
-                                labels: labels,
+                                labels: dataPoints.map(d => { const dt = new Date(d.date); return `${dt.getMonth()+1}/${dt.getDate()}`; }),
                                 datasets: [
-                                    {
-                                        label: '総ユーザー数',
-                                        data: totalData,
-                                        borderColor: '#007bff',
-                                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                                        tension: 0.4
-                                    },
-                                    {
-                                        label: '新規登録数',
-                                        data: newData,
-                                        borderColor: '#28a745',
-                                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                                        tension: 0.4
-                                    }
+                                    { label: '総ユーザー数', data: dataPoints.map(d => d.value || 0), borderColor: '#6366F1', backgroundColor: 'rgba(99,102,241,0.08)', tension: 0.4, fill: true },
+                                    { label: '新規登録', data: dataPoints.map(d => d.new || 0), borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.08)', tension: 0.4, fill: true }
                                 ]
                             },
                             options: {
-                                responsive: true,
-                                maintainAspectRatio: false
+                                responsive: true, maintainAspectRatio: false,
+                                plugins: { legend: { position: 'top' } },
+                                scales: { y: { beginAtZero: true, grid: { color: '#F1F5F9' } }, x: { grid: { color: '#F1F5F9' } } }
                             }
                         });
                     }
                 }
-                
-                if (notificationsRes.ok) {
-                    const notificationsResult = await notificationsRes.json();
-                    const notifications = (notificationsResult.data || []).slice(0, 10).reverse();
-                    
+
+                if (notifRes && notifRes.ok) {
+                    const notifResult = await notifRes.json();
+                    const notifications = (notifResult.data || []).slice(0, 10).reverse();
                     const ctx2 = document.getElementById('notificationsChart');
                     if (ctx2 && notifications.length > 0) {
                         if (notificationsChart) notificationsChart.destroy();
-                        
-                        const labels = notifications.map((n, i) => `通知${i + 1}`);
-                        const openRateData = notifications.map(n => n.performance?.open_rate || 0);
-                        
                         notificationsChart = new Chart(ctx2.getContext('2d'), {
                             type: 'bar',
                             data: {
-                                labels: labels,
-                                datasets: [{
-                                    label: '開封率 (%)',
-                                    data: openRateData,
-                                    backgroundColor: '#28a745'
-                                }]
+                                labels: notifications.map((n, i) => `通知${i + 1}`),
+                                datasets: [
+                                    { label: '開封率 (%)', data: notifications.map(n => n.performance?.open_rate || 0), backgroundColor: 'rgba(99,102,241,0.8)', borderRadius: 4 },
+                                    { label: 'CTR (%)', data: notifications.map(n => n.performance?.ctr || 0), backgroundColor: 'rgba(6,182,212,0.8)', borderRadius: 4 }
+                                ]
                             },
                             options: {
-                                responsive: true,
-                                maintainAspectRatio: false
+                                responsive: true, maintainAspectRatio: false,
+                                plugins: { legend: { position: 'top' } },
+                                scales: { y: { beginAtZero: true, grid: { color: '#F1F5F9' } }, x: { grid: { display: false } } }
                             }
                         });
                     }
@@ -710,7 +387,6 @@
                 console.error('Failed to load charts:', err);
             }
         }
-
     </script>
 </body>
 </html>
