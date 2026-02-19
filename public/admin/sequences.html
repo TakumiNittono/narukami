@@ -11,28 +11,43 @@
     <div id="mainScreen" class="admin-page">
 
         <div class="container">
-            <!-- 手動実行ボタン（目立つ位置に配置） -->
-            <div class="actions" style="margin-bottom: 20px;">
-                <button id="executeNowBtn" class="btn-primary" style="background: #4CAF50; font-size: 1.1em; padding: 15px 30px;">
-                    ⚡ 今すぐ実行（配信待ちの通知を送信）
-                </button>
-                <a href="/admin/sequences/create" class="btn-primary">+ 新規ステップ配信作成</a>
-            </div>
 
-            <!-- 進捗状況 -->
-            <div class="stats" style="margin-bottom: 20px;">
-                <h3 style="margin-bottom: 10px;">ステップ配信の進捗状況</h3>
-                <div id="stepStatus" style="display: flex; gap: 20px; flex-wrap: wrap;">
-                    <p>読み込み中...</p>
+            <!-- ページヘッダー -->
+            <div class="admin-page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <h1 class="admin-page-title">ステップ配信</h1>
+                    <p class="admin-page-subtitle">登録ユーザーへの自動ステップ通知を管理します</p>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button id="executeNowBtn" class="btn btn-success">
+                        ⚡ 今すぐ実行
+                    </button>
+                    <a href="/admin/sequences/create" class="btn btn-primary">+ 新規作成</a>
                 </div>
             </div>
 
-            <div class="notifications-section">
-                <h2>ステップ配信シーケンス一覧</h2>
-                <div id="sequencesList" class="sequences-list">
-                    <p class="loading">読み込み中...</p>
+            <!-- 進捗状況カード -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="card-header">
+                    <span class="card-title">配信進捗状況</span>
+                </div>
+                <div class="card-body" style="display:flex; gap:32px; flex-wrap:wrap;">
+                    <div id="stepStatus"><span class="loading" style="padding:0;">読み込み中...</span></div>
                 </div>
             </div>
+
+            <!-- シーケンス一覧 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">シーケンス一覧</span>
+                </div>
+                <div class="card-body" style="padding-top:8px;">
+                    <div id="sequencesList" class="sequences-list">
+                        <p class="loading">読み込み中...</p>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -214,23 +229,28 @@
 
                 if (result.status === 'ok' && result.data) {
                     const { stats, overdue } = result.data;
-                    
+                    const overdueClass = overdue.length > 0 ? 'badge badge-danger' : 'badge badge-success';
+
                     statusDiv.innerHTML = `
-                        <div>
-                            <strong>総進捗数:</strong> ${stats.total}件
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:13px; color:var(--color-text-muted);">総進捗数</span>
+                            <span style="font-size:20px; font-weight:700; color:var(--color-text);">${stats.total}件</span>
                         </div>
-                        <div style="color: ${overdue.length > 0 ? '#f44336' : '#4CAF50'};">
-                            <strong>配信待ち:</strong> ${overdue.length}件
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:13px; color:var(--color-text-muted);">配信待ち</span>
+                            <span class="${overdueClass}">${overdue.length}件</span>
                         </div>
-                        <div>
-                            <strong>今後の予定:</strong> ${stats.upcoming}件
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:13px; color:var(--color-text-muted);">今後の予定</span>
+                            <span style="font-size:20px; font-weight:700; color:var(--color-text);">${stats.upcoming}件</span>
                         </div>
-                        <div>
-                            <strong>完了:</strong> ${stats.completed}件
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:13px; color:var(--color-text-muted);">完了</span>
+                            <span style="font-size:20px; font-weight:700; color:var(--color-success);">${stats.completed}件</span>
                         </div>
                     `;
                 } else {
-                    statusDiv.innerHTML = '<p>進捗情報の取得に失敗しました</p>';
+                    statusDiv.innerHTML = '<p class="no-data">進捗情報の取得に失敗しました</p>';
                 }
             } catch (error) {
                 console.error('Status load error:', error);
