@@ -203,7 +203,7 @@ async function handleNotifications(req, res) {
         .select('id, title, body, url, send_at, created_at, target_user_count')
         .eq('sent', true)
         .is('deleted_at', null)
-        .order('created_at', { ascending: false })
+        .order('send_at', { ascending: false })
         .range(offset, offset + limit - 1);
     
     if (tenantId) {

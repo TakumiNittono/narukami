@@ -189,9 +189,10 @@ async function handleSendNow(req, res) {
 
         // 送信結果に応じてステータスを更新
         if (successCount > 0) {
+            // send_atを実際の送信時刻に更新（予約日時が未来のまま残るのを防ぐ）
             await supabaseAdmin
                 .from('notifications')
-                .update({ sent: true, status: 'sent' })
+                .update({ sent: true, status: 'sent', send_at: new Date().toISOString() })
                 .eq('id', notification_id);
             
             // notification_stats の初期化（送信成功時のみ）
