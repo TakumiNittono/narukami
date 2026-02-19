@@ -67,6 +67,18 @@ export default async function handler(req, res) {
             return res.status(400).json({ status: 'error', message: 'Body too long (max 500)' });
         }
 
+        // URLバリデーション（指定されている場合）
+        if (url) {
+            try {
+                const parsed = new URL(url);
+                if (!['http:', 'https:'].includes(parsed.protocol)) {
+                    return res.status(400).json({ status: 'error', message: 'URL must use http or https protocol' });
+                }
+            } catch {
+                return res.status(400).json({ status: 'error', message: 'Invalid URL format' });
+            }
+        }
+
         console.log('[Create Notification] Starting with data:', { title, body, send_at, target_type });
         const tenantId = req.body.tenant_id; // フルマネージド対応
         console.log('[Create Notification] Tenant ID:', tenantId);

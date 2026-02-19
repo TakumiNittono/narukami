@@ -28,26 +28,26 @@
             margin-bottom: 30px;
         }
         .stat-card {
-            background: white;
-            border-radius: 8px;
+            background: var(--color-surface);
+            border-radius: var(--radius);
             padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow-sm);
         }
         .stat-card h3 {
             margin: 0 0 10px 0;
             font-size: 14px;
-            color: #666;
+            color: var(--color-text-muted);
         }
         .stat-card .value {
             font-size: 32px;
             font-weight: bold;
-            color: #333;
+            color: var(--color-text);
         }
         .tabs {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
+            border-bottom: 2px solid var(--color-border);
         }
         .tab {
             padding: 12px 24px;
@@ -55,75 +55,34 @@
             border: none;
             cursor: pointer;
             font-size: 16px;
-            color: #666;
+            color: var(--color-text-muted);
             border-bottom: 2px solid transparent;
             margin-bottom: -2px;
         }
         .tab.active {
-            color: #007bff;
-            border-bottom-color: #007bff;
+            color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
         }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
         .tenants-list, .tasks-list, .reports-list {
-            background: white;
-            border-radius: 8px;
+            background: var(--color-surface);
+            border-radius: var(--radius);
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow-sm);
         }
         .list-item {
             padding: 20px;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid var(--color-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .list-item:last-child {
-            border-bottom: none;
-        }
-        .list-item:hover {
-            background: #f5f5f5;
-        }
-        .item-info h4 {
-            margin: 0 0 8px 0;
-            font-size: 18px;
-        }
-        .item-info p {
-            margin: 4px 0;
-            color: #666;
-            font-size: 14px;
-        }
-        .item-actions {
-            display: flex;
-            gap: 10px;
-        }
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .btn-primary {
-            background: #007bff;
-            color: white;
-        }
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
+        .list-item:last-child { border-bottom: none; }
+        .list-item:hover { background: var(--color-bg); }
+        .item-info h4 { margin: 0 0 8px 0; font-size: 18px; }
+        .item-info p { margin: 4px 0; color: var(--color-text-muted); font-size: 14px; }
+        .item-actions { display: flex; gap: 10px; align-items: center; }
         .status-badge {
             display: inline-block;
             padding: 4px 12px;
@@ -131,29 +90,15 @@
             font-size: 12px;
             font-weight: bold;
         }
-        .status-active {
-            background: #d4edda;
-            color: #155724;
-        }
-        .status-pending {
-            background: #fff3cd;
-            color: #856404;
-        }
-        .status-completed {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-        .status-urgent {
-            background: #f8d7da;
-            color: #721c24;
-        }
+        .status-active { background: #ECFDF5; color: #065F46; }
+        .status-pending { background: #FFFBEB; color: #92400E; }
+        .status-completed { background: #EFF6FF; color: #1E40AF; }
+        .status-urgent { background: #FEF2F2; color: #991B1B; }
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: rgba(0,0,0,0.5);
             z-index: 1000;
         }
@@ -163,156 +108,53 @@
             justify-content: center;
         }
         .modal-content {
-            background: white;
-            border-radius: 8px;
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
             padding: 30px;
             max-width: 600px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
         }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
         .form-group input,
         .form-group select,
         .form-group textarea {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
             font-size: 14px;
         }
-        .form-group textarea {
-            min-height: 100px;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-        }
-        .analytics-filter-bar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .analytics-filter-bar label {
-            font-weight: bold;
-            font-size: 14px;
-            color: #555;
-        }
-        .analytics-filter-bar select {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .analytics-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        .analytics-stat-card {
-            background: white;
-            border-radius: 8px;
-            padding: 16px 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .analytics-stat-card h3 {
-            margin: 0 0 8px 0;
-            font-size: 12px;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .analytics-stat-card .value {
-            font-size: 28px;
-            font-weight: bold;
-            color: #333;
-        }
-        .analytics-stat-card .sub {
-            font-size: 12px;
-            color: #aaa;
-            margin-top: 4px;
-        }
-        .ctr-good { color: #28a745; }
-        .ctr-mid  { color: #fd7e14; }
-        .ctr-low  { color: #dc3545; }
-        .analytics-table-wrap {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .analytics-table-wrap h3 {
-            margin: 0;
-            padding: 16px 20px;
-            font-size: 16px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        table.ctr-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-        table.ctr-table thead tr {
-            background: #f8f9fa;
-        }
-        table.ctr-table th,
-        table.ctr-table td {
-            padding: 12px 16px;
-            text-align: left;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        table.ctr-table th {
-            font-weight: 600;
-            color: #555;
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-        table.ctr-table tbody tr:hover {
-            background: #fafafa;
-        }
-        table.ctr-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-        .bar-wrap {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .bar-bg {
-            flex: 1;
-            height: 8px;
-            background: #e9ecef;
-            border-radius: 4px;
-            overflow: hidden;
-            min-width: 80px;
-        }
-        .bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.3s ease;
-        }
-        .bar-fill.ctr-color   { background: #007bff; }
-        .bar-fill.open-color  { background: #28a745; }
-        .tenant-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            background: #e8f0fe;
-            color: #1a56db;
-            font-weight: 600;
-        }
+        .form-group textarea { min-height: 100px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--color-text-light); }
+        /* Analytics tab */
+        .analytics-filter-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .analytics-filter-bar label { font-weight: 600; font-size: 14px; color: var(--color-text-muted); }
+        .analytics-filter-bar select { padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 14px; }
+        .analytics-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .analytics-stat-card { background: var(--color-surface); border-radius: var(--radius); padding: 16px 20px; box-shadow: var(--shadow-sm); }
+        .analytics-stat-card h3 { margin: 0 0 8px 0; font-size: 12px; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.5px; }
+        .analytics-stat-card .value { font-size: 28px; font-weight: bold; color: var(--color-text); }
+        .analytics-stat-card .sub { font-size: 12px; color: var(--color-text-light); margin-top: 4px; }
+        .ctr-good { color: var(--color-success); }
+        .ctr-mid  { color: var(--color-warning); }
+        .ctr-low  { color: var(--color-danger); }
+        .analytics-table-wrap { background: var(--color-surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+        .analytics-table-wrap h3 { margin: 0; padding: 16px 20px; font-size: 16px; border-bottom: 1px solid var(--color-border); }
+        table.ctr-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        table.ctr-table thead tr { background: var(--color-bg); }
+        table.ctr-table th, table.ctr-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--color-border); }
+        table.ctr-table th { font-weight: 600; color: var(--color-text-muted); font-size: 12px; text-transform: uppercase; }
+        table.ctr-table tbody tr:hover { background: var(--color-bg); }
+        table.ctr-table tbody tr:last-child td { border-bottom: none; }
+        .bar-wrap { display: flex; align-items: center; gap: 8px; }
+        .bar-bg { flex: 1; height: 8px; background: var(--color-border); border-radius: 4px; overflow: hidden; min-width: 80px; }
+        .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+        .bar-fill.ctr-color  { background: var(--color-primary); }
+        .bar-fill.open-color { background: var(--color-success); }
+        .tenant-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #EEF2FF; color: var(--color-primary); font-weight: 600; }
     </style>
 </head>
 <body>
@@ -604,6 +446,7 @@
         async function loadTenants() {
             try {
                 const res = await apiGet('/api/tenants?action=list');
+                if (!res || !res.ok) { toast('error', 'エラー', '顧客一覧の読み込みに失敗しました'); return; }
                 const result = await res.json();
                 tenants = result.data || [];
                 renderTenants();
@@ -620,6 +463,7 @@
         async function loadTasks() {
             try {
                 const res = await apiGet('/api/tasks?action=list');
+                if (!res || !res.ok) { toast('error', 'エラー', 'タスク一覧の読み込みに失敗しました'); return; }
                 tasks = (await res.json()).data || [];
                 renderTasks();
             } catch (err) {
@@ -630,6 +474,7 @@
         async function loadReports() {
             try {
                 const res = await apiGet('/api/reports?action=list');
+                if (!res || !res.ok) { toast('error', 'エラー', 'レポート一覧の読み込みに失敗しました'); return; }
                 reports = (await res.json()).data || [];
                 renderReports();
             } catch (err) {
@@ -640,6 +485,7 @@
         async function loadStats() {
             try {
                 const res = await apiGet('/api/tenants?action=stats');
+                if (!res || !res.ok) { console.error('loadStats: failed'); return; }
                 const s = (await res.json()).data || {};
                 document.getElementById('totalTenants').textContent = s.total_tenants || 0;
                 document.getElementById('activeTenants').textContent = s.active_tenants || 0;
@@ -657,6 +503,7 @@
                     ? `/api/analytics?type=notifications&limit=50&tenant_id=${tenantId}`
                     : `/api/analytics?type=notifications&limit=50`;
                 const res = await apiGet(url);
+                if (!res || !res.ok) { analyticsData = []; renderAnalytics(); return; }
                 const notifications = (await res.json()).data || [];
                 analyticsData = notifications.map(n => ({
                     tenant_id: n.tenant_id,
@@ -860,6 +707,7 @@
 
             try {
                 const res = await apiPost('/api/tenants?action=create', data);
+                if (!res) return;
                 const result = await res.json();
                 if (result.status === 'ok') {
                     toast('success', '顧客追加', '顧客を追加しました');
@@ -880,6 +728,7 @@
 
             try {
                 const res = await apiPost('/api/tasks?action=create', data);
+                if (!res) return;
                 const result = await res.json();
                 if (result.status === 'ok') {
                     toast('success', 'タスク作成', 'タスクを作成しました');
@@ -900,6 +749,7 @@
 
             try {
                 const res = await apiPost('/api/reports?action=create', data);
+                if (!res) return;
                 const result = await res.json();
                 if (result.status === 'ok') {
                     toast('success', 'レポート作成', 'レポートを作成しました');
@@ -918,6 +768,7 @@
 
             try {
                 const res = await apiPost('/api/tasks?action=complete', { task_id: taskId });
+                if (!res) return;
                 const result = await res.json();
                 if (result.status === 'ok') {
                     toast('success', '完了', 'タスクを完了にしました');

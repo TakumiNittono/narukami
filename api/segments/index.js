@@ -82,6 +82,29 @@ async function handleCreate(req, res) {
         });
     }
 
+    // filter_conditions の構造バリデーション
+    if (typeof filter_conditions !== 'object' || filter_conditions === null) {
+        return res.status(400).json({ status: 'error', message: 'filter_conditions must be an object' });
+    }
+    if (filter_conditions.conditions && !Array.isArray(filter_conditions.conditions)) {
+        return res.status(400).json({ status: 'error', message: 'filter_conditions.conditions must be an array' });
+    }
+    if (filter_conditions.conditions) {
+        const validFields = ['registered_days_ago', 'device_type', 'browser', 'has_tag'];
+        const validOps = ['eq', 'gte', 'lte', 'in'];
+        for (const c of filter_conditions.conditions) {
+            if (!c.field || !c.operator) {
+                return res.status(400).json({ status: 'error', message: 'Each condition must have field and operator' });
+            }
+            if (!validFields.includes(c.field)) {
+                return res.status(400).json({ status: 'error', message: `Invalid field: ${c.field}` });
+            }
+            if (!validOps.includes(c.operator)) {
+                return res.status(400).json({ status: 'error', message: `Invalid operator: ${c.operator}` });
+            }
+        }
+    }
+
     const { data, error } = await supabaseAdmin
         .from('user_segments')
         .insert({

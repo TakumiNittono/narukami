@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../../lib/supabase.js';
 import { verifyAdmin } from '../../lib/auth.js';
 import webpush from 'web-push';
+import crypto from 'crypto';
 
 // Web Push の VAPID キーを設定
 webpush.setVapidDetails(
@@ -10,8 +11,12 @@ webpush.setVapidDetails(
 );
 
 export default async function handler(req, res) {
-    // Vercel Cron または管理画面からのリクエストを受け付ける
-    const isCronRequest = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+    // Vercel Cron または管理画面からのリクエストを受け付ける（タイミング攻撃対策）
+    const cronHeader = req.headers.authorization || '';
+    const cronExpected = `Bearer ${process.env.CRON_SECRET}`;
+    const isCronRequest = cronHeader.length === cronExpected.length && process.env.CRON_SECRET
+        ? crypto.timingSafeEqual(Buffer.from(cronHeader), Buffer.from(cronExpected))
+        : false;
     const isAdminRequest = await verifyAdmin(req);
 
     if (!isCronRequest && !isAdminRequest) {
@@ -60,8 +65,14 @@ export default async function handler(req, res) {
         let successCount = 0;
         let failureCount = 0;
 
-        // 各進捗について処理
-        for (const progress of pendingProgress) {
+        // バッチ処理（10件ずつ）でメモリ枯渇を防止
+        const BATCH_SIZE = 10;
+        for (let batchStart = 0; batchStart < pendingProgress.length; batchStart += BATCH_SIZE) {
+            const batch = pendingProgress.slice(batchStart, batchStart + BATCH_SIZE);
+            await Promise.all(batch.map(processProgress));
+        }
+
+        async function processProgress(progress) {
             try {
                 // 次に送信するステップ番号（current_step + 1）
                 const nextStepOrder = progress.current_step + 1;
@@ -80,9 +91,9 @@ export default async function handler(req, res) {
                         .from('user_step_progress')
                         .update({ completed: true, updated_at: new Date().toISOString() })
                         .eq('id', progress.id);
-                    
+
                     console.log(`[Step Cron] Sequence completed for user ${progress.user_id}`);
-                    continue;
+                    return;
                 }
 
                 // 通知を送信（subscription形式: { endpoint, keys: { p256dh, auth } }）
@@ -92,12 +103,12 @@ export default async function handler(req, res) {
                 } catch (parseErr) {
                     console.error(`[Step Cron] Invalid fcm_token for user ${progress.user_id}:`, parseErr);
                     failureCount++;
-                    continue;
+                    return;
                 }
                 if (!subscription.endpoint || !subscription.keys) {
                     console.error(`[Step Cron] Invalid subscription format for user ${progress.user_id}`);
                     failureCount++;
-                    continue;
+                    return;
                 }
                 const payload = JSON.stringify({
                     title: stepNotification.title,

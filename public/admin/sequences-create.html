@@ -11,12 +11,16 @@
 
     <!-- 作成画面 -->
     <div id="createScreen" class="create-screen admin-page">
-        <header class="header">
-            <h1>ステップ配信作成</h1>
-            <div style="display: flex; gap: 10px;">
-                <a href="/admin/sequences" class="btn-secondary">戻る</a>
+        <div class="container">
+            <div class="admin-page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <h1 class="admin-page-title">ステップ配信作成</h1>
+                </div>
+                <div>
+                    <a href="/admin/sequences" class="btn btn-secondary">戻る</a>
+                </div>
             </div>
-        </header>
+        </div>
 
         <div class="container">
             <form id="createForm" class="create-form">
@@ -64,9 +68,12 @@
 
         async function onAdminReady(user) {
             try {
-                const result = await (await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname))).json();
-                if (result.status === 'ok' && result.data.tenant) {
-                    pageTenantId = result.data.tenant.id;
+                const res = await apiGet('/api/stats?domain=' + encodeURIComponent(window.location.hostname));
+                if (res && res.ok) {
+                    const result = await res.json();
+                    if (result.status === 'ok' && result.data.tenant) {
+                        pageTenantId = result.data.tenant.id;
+                    }
                 }
             } catch (err) {
                 console.error('Failed to load tenant ID:', err);
@@ -260,6 +267,7 @@
                     payload.tenant_id = pageTenantId;
                 }
                 const response = await apiPost('/api/step-sequences?action=create', payload);
+                if (!response) return;
                 const result = await response.json();
 
                 if (result.status === 'ok') {

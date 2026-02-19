@@ -10,12 +10,8 @@ if (process.env.VAPID_EMAIL && process.env.VAPID_PUBLIC_KEY && process.env.VAPID
     );
 }
 
+// CORS は vercel.json でグローバル設定済み
 export default async function handler(req, res) {
-    // CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
@@ -88,20 +84,20 @@ export default async function handler(req, res) {
         }
         
         // サブスクリプション情報をJSON文字列として保存
-        // fcm_tokenカラムにサブスクリプションJSON全体を保存
-        // endpointはユニークなので、同じendpointの場合は上書きされる
         const subscriptionJson = JSON.stringify(subscription);
-        
-        // 既存のendpointをチェックして、存在する場合は更新、存在しない場合は挿入
-        // 全ユーザーを取得してJavaScriptでフィルタリング（LIKEクエリのエスケープ問題を回避）
-        const { data: allUsers, error: fetchError } = await supabaseAdmin
+
+        // endpointで既存ユーザーを検索（endpoint_hashカラムまたはfcm_tokenのLIKE検索）
+        // fcm_token内のendpointでフィルタリング
+        const { data: existingUsers, error: fetchError } = await supabaseAdmin
             .from('users')
-            .select('id, fcm_token, tenant_id');
-        
+            .select('id, fcm_token, tenant_id')
+            .like('fcm_token', `%${subscription.endpoint.replace(/%/g, '\\%')}%`)
+            .limit(1);
+
         if (fetchError) throw fetchError;
-        
-        // endpointで既存ユーザーを検索
-        const existing = allUsers?.find(user => {
+
+        // endpointが一致するか厳密にチェック
+        const existing = existingUsers?.find(user => {
             try {
                 const userSub = JSON.parse(user.fcm_token);
                 return userSub.endpoint === subscription.endpoint;
@@ -109,7 +105,7 @@ export default async function handler(req, res) {
                 return false;
             }
         });
-        
+
         let userId;
         let isNewUser = false;
 
@@ -117,15 +113,14 @@ export default async function handler(req, res) {
             // 既存のレコードを更新（tenant_idも更新）
             const updateData = { fcm_token: subscriptionJson };
             if (tenantId && !existing.tenant_id) {
-                // tenant_idが設定されていない場合のみ更新
                 updateData.tenant_id = tenantId;
             }
-            
+
             const { error } = await supabaseAdmin
                 .from('users')
                 .update(updateData)
                 .eq('id', existing.id);
-            
+
             if (error) throw error;
             userId = existing.id;
         } else {
@@ -134,13 +129,13 @@ export default async function handler(req, res) {
             if (tenantId) {
                 insertData.tenant_id = tenantId;
             }
-            
+
             const { data: newUser, error } = await supabaseAdmin
                 .from('users')
                 .insert(insertData)
                 .select()
                 .single();
-            
+
             if (error) {
                 // UNIQUE制約違反の場合は更新を試みる
                 if (error.code === '23505') {
@@ -150,7 +145,7 @@ export default async function handler(req, res) {
                         .eq('fcm_token', subscriptionJson)
                         .select()
                         .single();
-                    
+
                     if (updateError) throw updateError;
                     userId = updatedUser.id;
                 } else {

@@ -1,9 +1,17 @@
 import { supabaseAdmin } from '../../lib/supabase.js';
 import { initWebPush } from '../../lib/webpush.js';
+import crypto from 'crypto';
+
+function verifyCronSecret(headerValue) {
+    const expected = `Bearer ${process.env.CRON_SECRET}`;
+    if (!headerValue || !process.env.CRON_SECRET) return false;
+    if (headerValue.length !== expected.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(headerValue), Buffer.from(expected));
+}
 
 export default async function handler(req, res) {
-    // Vercel Cron認証
-    if (req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
+    // Vercel Cron認証（タイミング攻撃対策）
+    if (!verifyCronSecret(req.headers['authorization'])) {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 
@@ -167,11 +175,15 @@ export default async function handler(req, res) {
                     statsData.tenant_id = notification.tenant_id;
                 }
                 
-                await supabaseAdmin
+                const { error: statsError } = await supabaseAdmin
                     .from('notification_stats')
                     .upsert(statsData, {
                         onConflict: 'notification_id'
                     });
+
+                if (statsError) {
+                    console.error(`[Cron] notification_stats upsert error for notification ${notification.id}:`, statsError);
+                }
             } else {
                 // 送信数が0の場合は「送信失敗」として記録
                 await supabaseAdmin

@@ -28,11 +28,14 @@ async function handleList(req, res) {
 
     // 各テナントのuser_count / notification_count / pending_task_count を付与
     const tenantsWithStats = await Promise.all((tenants || []).map(async (tenant) => {
-        const [userRes, notifRes, taskRes] = await Promise.all([
+        const results = await Promise.allSettled([
             supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant.id),
             supabaseAdmin.from('notifications').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant.id).eq('sent', true),
             supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant.id).in('status', ['pending', 'in_progress'])
         ]);
+        const userRes = results[0].status === 'fulfilled' ? results[0].value : { count: 0 };
+        const notifRes = results[1].status === 'fulfilled' ? results[1].value : { count: 0 };
+        const taskRes = results[2].status === 'fulfilled' ? results[2].value : { count: 0 };
         return {
             ...tenant,
             stats: {

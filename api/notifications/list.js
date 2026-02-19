@@ -208,11 +208,15 @@ async function handleSendNow(req, res) {
                 statsData.tenant_id = notification.tenant_id;
             }
             
-            await supabaseAdmin
+            const { error: statsError } = await supabaseAdmin
                 .from('notification_stats')
                 .upsert(statsData, {
                     onConflict: 'notification_id'
                 });
+
+            if (statsError) {
+                console.error('notification_stats upsert error:', statsError);
+            }
         } else {
             // 送信数が0の場合は「送信失敗」として記録
             await supabaseAdmin

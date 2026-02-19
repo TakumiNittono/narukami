@@ -132,6 +132,25 @@ async function handleCreate(req, res) {
                 message: 'scheduled_time is required when delay_type is "scheduled"'
             });
         }
+
+        // delay_value のバリデーション（immediate以外で必要）
+        if (step.delay_type !== 'immediate' && step.delay_type !== 'scheduled') {
+            const dv = Number(step.delay_value);
+            if (!Number.isFinite(dv) || dv < 1 || dv > 365) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: `Step ${step.step_order}: delay_value must be between 1 and 365`
+                });
+            }
+        }
+    }
+
+    // ステップ数上限チェック
+    if (steps.length > 50) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Too many steps (max 50)'
+        });
     }
 
     const insertData = {
@@ -306,6 +325,23 @@ async function handleUpdate(req, res) {
                 message: 'scheduled_time is required when delay_type is "scheduled"'
             });
         }
+
+        if (step.delay_type !== 'immediate' && step.delay_type !== 'scheduled') {
+            const dv = Number(step.delay_value);
+            if (!Number.isFinite(dv) || dv < 1 || dv > 365) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: `Step ${step.step_order}: delay_value must be between 1 and 365`
+                });
+            }
+        }
+    }
+
+    if (steps.length > 50) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Too many steps (max 50)'
+        });
     }
 
     // シーケンスを更新

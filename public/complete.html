@@ -24,10 +24,21 @@
             <p>プッシュ通知で<br>最新情報をお届けします</p>
 
             <div class="complete-actions">
-                <!-- LINE URL は実際の公式LINEアカウントURLに変更してください -->
-                <a href="https://lin.ee/XXXXXXXX" class="btn-line" target="_blank" rel="noopener noreferrer">
+                <a id="lineLink" href="#" class="btn-line" target="_blank" rel="noopener noreferrer" style="display:none;">
                     LINE公式に登録する
                 </a>
+                <script>
+                    // LINE URLが設定されている場合のみ表示
+                    (function() {
+                        var link = document.getElementById('lineLink');
+                        var lineUrl = '';
+                        try { lineUrl = document.querySelector('meta[name="line-url"]')?.content || ''; } catch(e) {}
+                        if (lineUrl && lineUrl !== 'https://lin.ee/XXXXXXXX') {
+                            link.href = lineUrl;
+                            link.style.display = '';
+                        }
+                    })();
+                </script>
                 <a href="/home" class="btn-secondary btn-link">
                     ホームへ
                 </a>

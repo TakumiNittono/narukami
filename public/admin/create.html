@@ -11,8 +11,6 @@
 
     <div id="createScreen" class="admin-page">
         <div class="container">
-
-        <div class="container">
             <form id="createForm" class="create-form">
                 <div class="form-group">
                     <label for="title">タイトル <span class="required">*</span></label>
@@ -184,6 +182,7 @@
 
             try {
                 var response = await apiPost('/api/notifications/create', payload);
+                if (!response) { setButtonLoading(submitBtn, false); return; }
                 var result = await response.json();
                 if (result.status === 'ok') {
                     toast('success', '通知を作成しました');

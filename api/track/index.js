@@ -1,12 +1,8 @@
 import { supabaseAdmin } from '../../lib/supabase.js';
 
 // トラッキングAPI統合版（event_typeで分岐）
+// CORS は vercel.json でグローバル設定済み
 export default async function handler(req, res) {
-    // CORS設定
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
@@ -97,9 +93,13 @@ async function updateNotificationStats(notificationId, eventType) {
         upsertData.tenant_id = tenantId;
     }
 
-    await supabaseAdmin
+    const { error: upsertError } = await supabaseAdmin
         .from('notification_stats')
         .upsert(upsertData, {
             onConflict: 'notification_id'
         });
+
+    if (upsertError) {
+        console.error('notification_stats upsert error:', upsertError);
+    }
 }

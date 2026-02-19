@@ -83,7 +83,7 @@
                     : '/api/step-sequences?action=list';
                 const response = await apiGet(url);
 
-                if (!response.ok) {
+                if (!response || !response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
@@ -137,7 +137,7 @@
                         ${stepsHtml}
                     </div>
                     <div class="sequence-actions">
-                        <a href="/admin/sequences/edit?id=${sequence.id}" class="btn-small btn-edit" style="background: #4A90D9; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block;">編集</a>
+                        <a href="/admin/sequences/edit?id=${sequence.id}" class="btn-small btn-edit" style="text-decoration: none; display: inline-block;">編集</a>
                         <button class="btn-small btn-toggle" data-id="${sequence.id}" data-active="${sequence.is_active}">
                             ${sequence.is_active ? '無効化' : '有効化'}
                         </button>
@@ -190,6 +190,7 @@
                 const payload = { id, is_active: isActive };
                 if (pageTenantId) payload.tenant_id = pageTenantId;
                 const response = await apiPost('/api/step-sequences?action=toggle', payload);
+                if (!response) return;
                 const result = await response.json();
                 if (result.status === 'ok') {
                     await loadSequences();
@@ -206,6 +207,7 @@
                 const payload = { id };
                 if (pageTenantId) payload.tenant_id = pageTenantId;
                 const response = await apiPost('/api/step-sequences?action=delete', payload);
+                if (!response) return;
                 const result = await response.json();
                 if (result.status === 'ok') {
                     await loadSequences();
@@ -224,6 +226,7 @@
                     ? `/api/step-sequences?action=status&tenant_id=${pageTenantId}`
                     : '/api/step-sequences?action=status';
                 const response = await apiGet(url);
+                if (!response || !response.ok) { statusDiv.innerHTML = '<p class="no-data">進捗情報の取得に失敗しました</p>'; return; }
 
                 const result = await response.json();
 
@@ -265,6 +268,7 @@
                 const payload = {};
                 if (pageTenantId) payload.tenant_id = pageTenantId;
                 const response = await apiPost('/api/cron/send-step-notifications', payload);
+                if (!response) { setButtonLoading(btn, false); return; }
                 const result = await response.json();
                 if (result.status === 'ok') {
                     toast('success', '実行完了', `成功: ${result.sent}件 / 失敗: ${result.failed}件`);

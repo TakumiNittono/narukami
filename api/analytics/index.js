@@ -228,7 +228,8 @@ async function handleNotifications(req, res) {
         let statsQuery = supabaseAdmin
             .from('notification_stats')
             .select('*')
-            .in('notification_id', notificationIds);
+            .in('notification_id', notificationIds)
+            .limit(100);
         
         if (tenantId) {
             statsQuery = statsQuery.eq('tenant_id', tenantId);

@@ -51,28 +51,31 @@ export default async function handler(req, res) {
             const tenantIdNum = parseInt(tenant.id);
             console.log('Fetching stats for tenant_id:', tenantIdNum);
             
-            const { count: userCount, error: userCountError } = await supabaseAdmin
+            let userCount = 0;
+            let notificationCount = 0;
+
+            const { count: uc, error: userCountError } = await supabaseAdmin
                 .from('users')
                 .select('*', { count: 'exact', head: true })
                 .eq('tenant_id', tenantIdNum);
-            
+
             if (userCountError) {
                 console.error('User count error:', userCountError);
+            } else {
+                userCount = uc || 0;
             }
-            
-            console.log('User count for tenant:', tenantIdNum, '=', userCount);
-            
-            const { count: notificationCount, error: notificationCountError } = await supabaseAdmin
+
+            const { count: nc, error: notificationCountError } = await supabaseAdmin
                 .from('notifications')
                 .select('*', { count: 'exact', head: true })
                 .eq('tenant_id', tenantIdNum)
                 .eq('sent', true);
-            
+
             if (notificationCountError) {
                 console.error('Notification count error:', notificationCountError);
+            } else {
+                notificationCount = nc || 0;
             }
-            
-            console.log('Notification count for tenant:', tenantIdNum, '=', notificationCount);
             
             // 未対応タスク数（tasksテーブルが存在する場合）
             let pendingTaskCount = 0;
@@ -93,16 +96,14 @@ export default async function handler(req, res) {
                 console.log('Tasks table may not exist:', e.message);
             }
             
-            console.log('Pending task count for tenant:', tenantIdNum, '=', pendingTaskCount);
-            
             return res.status(200).json({
                 status: 'ok',
                 data: {
                     tenant: {
                         ...tenant,
                         stats: {
-                            user_count: userCount || 0,
-                            notification_count: notificationCount || 0,
+                            user_count: userCount,
+                            notification_count: notificationCount,
                             pending_task_count: pendingTaskCount
                         }
                     }
