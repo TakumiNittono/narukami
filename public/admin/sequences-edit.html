@@ -317,7 +317,8 @@
                 if (pageTenantId) {
                     payload.tenant_id = pageTenantId;
                 }
-                const result = await apiPost('/api/step-sequences?action=update', payload);
+                const response = await apiPost('/api/step-sequences?action=update', payload);
+                const result = await response.json();
 
                 if (result.status === 'ok') {
                     toast('success', '更新完了', 'ステップ配信を更新しました');

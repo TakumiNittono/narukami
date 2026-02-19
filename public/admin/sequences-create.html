@@ -259,7 +259,8 @@
                 if (pageTenantId) {
                     payload.tenant_id = pageTenantId;
                 }
-                const result = await apiPost('/api/step-sequences?action=create', payload);
+                const response = await apiPost('/api/step-sequences?action=create', payload);
+                const result = await response.json();
 
                 if (result.status === 'ok') {
                     toast('success', '作成完了', 'ステップ配信を作成しました');
