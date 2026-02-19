@@ -129,6 +129,14 @@
                 <p class="guide-note">プッシュ通知はスマートフォン（iOS / Android）に対応しています</p>
             `;
         }
+
+        // 動画の自動再生を確実にする（muted + playsinline でも再生されない場合のフォールバック）
+        var vid = content.querySelector('video');
+        if (vid) {
+            vid.play().catch(function() {
+                vid.addEventListener('click', function() { vid.play(); }, { once: true });
+            });
+        }
     </script>
 </body>
 </html>
