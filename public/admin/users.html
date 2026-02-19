@@ -5,370 +5,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ユーザー管理 - Narukami 管理画面</title>
     <link rel="stylesheet" href="/admin/admin.css">
-    <style>
-        .users-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .users-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .users-header h1 {
-            margin: 0;
-            font-size: 28px;
-        }
-
-        .users-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .stat-card h3 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            color: #666;
-        }
-
-        .stat-card .value {
-            font-size: 32px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .users-table-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .users-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .users-table th {
-            background: #f8f9fa;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #dee2e6;
-        }
-
-        .users-table td {
-            padding: 12px;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        .users-table tr:hover {
-            background: #f8f9fa;
-        }
-
-        .user-id {
-            font-weight: 600;
-            color: #007bff;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .badge-success {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .badge-info {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-
-        .badge-warning {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .btn-detail {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .btn-detail:hover {
-            background: #0056b3;
-        }
-
-        .btn-delete {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-left: 6px;
-        }
-
-        .btn-delete:hover {
-            background: #c82333;
-        }
-
-        .btn-delete:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .actions-cell {
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-        }
-
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            padding: 20px;
-            background: #f8f9fa;
-        }
-
-        .pagination button {
-            padding: 8px 16px;
-            border: 1px solid #dee2e6;
-            background: white;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .pagination button:hover:not(:disabled) {
-            background: #f8f9fa;
-        }
-
-        .pagination button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .pagination .current-page {
-            font-weight: 600;
-            color: #007bff;
-        }
-
-        /* モーダル */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            overflow: auto;
-        }
-
-        .modal-content {
-            background: white;
-            margin: 50px auto;
-            padding: 30px;
-            border-radius: 8px;
-            max-width: 800px;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #dee2e6;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-        }
-
-        .close {
-            color: #aaa;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close:hover {
-            color: #000;
-        }
-
-        .user-detail-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        .detail-stat {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .detail-stat .label {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .detail-stat .value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .events-list {
-            margin-top: 20px;
-        }
-
-        .event-item {
-            padding: 12px;
-            border-bottom: 1px solid #dee2e6;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .event-item:last-child {
-            border-bottom: none;
-        }
-
-        .event-type {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .event-type.sent {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-
-        .event-type.open {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .event-type.click {
-            background: #cce5ff;
-            color: #004085;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-    </style>
 </head>
 <body>
     <div id="admin-nav-root"></div>
 
-    <!-- メイン画面 -->
-    <div id="mainScreen" class="main-screen admin-page">
-        <header class="header">
-            <h1>ユーザー管理</h1>
-            <div style="display: flex; gap: 10px;">
-                <a href="/admin" class="btn-secondary">ダッシュボード</a>
-                <button id="logoutButton" class="btn-secondary">ログアウト</button>
-            </div>
-        </header>
+    <div class="admin-page">
+        <div class="container">
 
-        <div class="users-container">
-            <!-- 統計カード -->
-            <div class="users-stats" id="usersStats">
-                <div class="stat-card">
-                    <h3>総ユーザー数</h3>
-                    <div class="value" id="totalUsers">-</div>
+            <!-- ページヘッダー -->
+            <div class="admin-page-header">
+                <h1 class="admin-page-title">ユーザー管理</h1>
+                <p class="admin-page-subtitle">登録ユーザーの確認・セグメント管理を行います</p>
+            </div>
+
+            <!-- KPIカード -->
+            <div class="kpi-cards" style="grid-template-columns: repeat(auto-fit, minmax(200px, 240px));">
+                <div class="kpi-card kpi-card--users">
+                    <div class="kpi-icon-wrap">👤</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">総ユーザー数</div>
+                        <div class="kpi-value" id="totalUsers">-</div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <h3>平均CTR</h3>
-                    <div class="value" id="avgCTR">-</div>
+                <div class="kpi-card kpi-card--ctr">
+                    <div class="kpi-icon-wrap">🖱</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">平均CTR</div>
+                        <div class="kpi-value" id="avgCTR">-</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- ユーザー一覧テーブル -->
-            <div class="users-table-container">
-                <table class="users-table">
-                    <thead>
-                        <tr>
-                            <th>ユーザーID</th>
-                            <th>デバイス</th>
-                            <th>登録日</th>
-                            <th>開封数</th>
-                            <th>クリック数</th>
-                            <th>CTR</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="usersTableBody">
-                        <tr>
-                            <td colspan="7" class="loading">読み込み中...</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- タブ -->
+            <div class="tabs-nav">
+                <button class="tab-btn active" onclick="switchTab('users', this)">ユーザー一覧</button>
+                <button class="tab-btn" onclick="switchTab('segments', this)">セグメント管理</button>
             </div>
 
-            <!-- ページネーション -->
-            <div class="pagination" id="pagination" style="display: none;">
-                <button id="prevPage" onclick="changePage(-1)">前へ</button>
-                <span class="current-page" id="currentPage">1</span>
-                <span>/</span>
-                <span id="totalPages">1</span>
-                <button id="nextPage" onclick="changePage(1)">次へ</button>
+            <!-- ユーザー一覧タブ -->
+            <div id="tab-users" class="tab-panel active">
+                <div class="card">
+                    <div class="card-body" style="padding:0;">
+                        <div class="table-wrap">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>デバイス</th>
+                                        <th>登録日</th>
+                                        <th>開封数</th>
+                                        <th>クリック数</th>
+                                        <th>CTR</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    <tr><td colspan="7" class="loading">読み込み中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination-bar" id="pagination" style="display:none;">
+                            <button id="prevPage" onclick="changePage(-1)">← 前へ</button>
+                            <span class="page-info"><strong id="currentPage">1</strong> / <span id="totalPages">1</span></span>
+                            <button id="nextPage" onclick="changePage(1)">次へ →</button>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- セグメント管理タブ -->
+            <div id="tab-segments" class="tab-panel">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">セグメント一覧</span>
+                        <button class="btn btn-primary btn-sm" onclick="openSegmentModal()">+ セグメント作成</button>
+                    </div>
+                    <div class="card-body" id="segmentsList">
+                        <div class="loading">読み込み中...</div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <!-- ユーザー詳細モーダル -->
-    <div id="userDetailModal" class="modal">
-        <div class="modal-content">
+    <div id="userModal" class="modal-overlay">
+        <div class="modal-box">
             <div class="modal-header">
-                <h2>ユーザー詳細 #<span id="modalUserId"></span></h2>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <button class="btn-delete" id="modalDeleteBtn" style="margin: 0;">削除</button>
-                    <span class="close" onclick="closeModal()">&times;</span>
-                </div>
+                <span class="modal-title">ユーザー詳細 #<span id="modalUserId"></span></span>
+                <button class="modal-close" onclick="closeModal('userModal')">✕</button>
             </div>
-            <div id="userDetailContent">
+            <div class="modal-body" id="userDetailContent">
                 <div class="loading">読み込み中...</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger btn-sm" id="modalDeleteBtn">削除</button>
+                <button class="btn btn-secondary btn-sm" onclick="closeModal('userModal')">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- セグメント作成モーダル -->
+    <div id="segmentModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">セグメント作成</span>
+                <button class="modal-close" onclick="closeModal('segmentModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">セグメント名 <span class="required">*</span></label>
+                    <input type="text" id="segName" class="form-input" placeholder="例: アクティブユーザー">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">説明</label>
+                    <textarea id="segDesc" class="form-textarea" rows="2" placeholder="このセグメントの概要"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="margin-bottom:10px;">フィルター条件</label>
+                    <div id="conditionsContainer"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addCondition()" style="margin-top:6px;">+ 条件を追加</button>
+                </div>
+                <div id="previewResult"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="previewSegment()">プレビュー</button>
+                <button class="btn btn-secondary" onclick="closeModal('segmentModal')">キャンセル</button>
+                <button class="btn btn-primary" onclick="createSegment()">作成する</button>
             </div>
         </div>
     </div>
@@ -378,8 +142,8 @@
     <script>
         let currentPage = 1;
         let totalPages = 1;
-        let currentDetailUserId = null;
         let pageTenantId = null;
+        let conditionCounter = 0;
 
         async function onAdminReady(user) {
             try {
@@ -387,99 +151,73 @@
                 if (result.status === 'ok' && result.data.tenant) {
                     pageTenantId = result.data.tenant.id;
                 }
-            } catch (err) {
-                console.error('Failed to load tenant ID:', err);
-            }
+            } catch (err) { console.error('Failed to load tenant ID:', err); }
             await loadUsers(1);
         }
 
+        // ==================== タブ ====================
+        function switchTab(name, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + name).classList.add('active');
+            if (name === 'segments') loadSegments();
+        }
+
+        // ==================== ユーザー一覧 ====================
         async function loadUsers(page = 1) {
             try {
                 const url = pageTenantId
                     ? `/api/users?action=list&page=${page}&limit=50&tenant_id=${pageTenantId}`
                     : `/api/users?action=list&page=${page}&limit=50`;
-
                 const result = await (await apiGet(url)).json();
-
-                if (result.status !== 'ok') {
-                    throw new Error(result.message || 'Failed to load users');
-                }
+                if (result.status !== 'ok') throw new Error(result.message || 'Failed to load users');
 
                 const { users, pagination } = result.data;
                 currentPage = pagination.page;
                 totalPages = pagination.total_pages;
 
-                // 統計を更新
-                updateStats(users, pagination.total);
-
-                // テーブルを更新
+                updateKPIs(users, pagination.total);
                 renderUsersTable(users);
-
-                // ページネーションを更新
                 updatePagination();
-
             } catch (err) {
-                console.error('Error loading users:', err);
                 document.getElementById('usersTableBody').innerHTML =
-                    '<tr><td colspan="7" style="text-align: center; color: #dc3545;">エラー: ' + err.message + '</td></tr>';
+                    `<tr><td colspan="7" style="text-align:center; color:var(--color-danger); padding:24px;">エラー: ${escapeHtml(err.message)}</td></tr>`;
             }
         }
 
-        function updateStats(users, totalUsers) {
-            document.getElementById('totalUsers').textContent = totalUsers.toLocaleString();
-
-            if (users.length === 0) {
-                document.getElementById('avgCTR').textContent = '0.0%';
-                return;
-            }
-
-            const totalCTR = users.reduce((sum, u) => sum + (u.stats.ctr || 0), 0);
-            const avgCTR = (totalCTR / users.length).toFixed(1);
-
-            document.getElementById('avgCTR').textContent = avgCTR + '%';
+        function updateKPIs(users, total) {
+            document.getElementById('totalUsers').textContent = total.toLocaleString();
+            if (users.length === 0) { document.getElementById('avgCTR').textContent = '0.0%'; return; }
+            const avg = (users.reduce((s, u) => s + (u.stats.ctr || 0), 0) / users.length).toFixed(1);
+            document.getElementById('avgCTR').textContent = avg + '%';
         }
 
         function renderUsersTable(users) {
             const tbody = document.getElementById('usersTableBody');
-
             if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666;">ユーザーが見つかりません</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--color-text-muted); padding:32px;">ユーザーが見つかりません</td></tr>';
                 return;
             }
-
             tbody.innerHTML = users.map(user => {
-                const createdDate = new Date(user.created_at).toLocaleDateString('ja-JP');
                 const ctr = user.stats.ctr.toFixed(1);
-
-                return `
-                    <tr>
-                        <td><span class="user-id">#${user.id}</span></td>
-                        <td>${escapeHtml(user.device_info)}</td>
-                        <td>${createdDate}</td>
-                        <td>${user.stats.total_opened}</td>
-                        <td>${user.stats.total_clicked}</td>
-                        <td>
-                            <span class="badge ${user.stats.ctr >= 50 ? 'badge-success' : user.stats.ctr >= 20 ? 'badge-info' : 'badge-warning'}">
-                                ${ctr}%
-                            </span>
-                        </td>
-                        <td class="actions-cell">
-                            <button class="btn-detail" onclick="showUserDetail(${user.id})">詳細</button>
-                            <button class="btn-delete" onclick="deleteUser(${user.id})">削除</button>
-                        </td>
-                    </tr>
-                `;
+                const ctrClass = user.stats.ctr >= 50 ? 'badge-success' : user.stats.ctr >= 20 ? 'badge-info' : 'badge-warning';
+                return `<tr>
+                    <td style="font-weight:600; color:var(--color-primary);">#${user.id}</td>
+                    <td style="color:var(--color-text-muted); font-size:13px;">${escapeHtml(user.device_info)}</td>
+                    <td style="color:var(--color-text-muted); font-size:13px;">${new Date(user.created_at).toLocaleDateString('ja-JP')}</td>
+                    <td>${user.stats.total_opened}</td>
+                    <td>${user.stats.total_clicked}</td>
+                    <td><span class="badge ${ctrClass}">${ctr}%</span></td>
+                    <td><button class="btn btn-secondary btn-sm" onclick="showUserDetail(${user.id})">詳細</button></td>
+                </tr>`;
             }).join('');
         }
 
         function updatePagination() {
-            const paginationEl = document.getElementById('pagination');
-            if (totalPages <= 1) {
-                paginationEl.style.display = 'none';
-                return;
-            }
-
-            paginationEl.style.display = 'flex';
+            const el = document.getElementById('pagination');
+            if (totalPages <= 1) { el.style.display = 'none'; return; }
+            el.style.display = 'flex';
             document.getElementById('currentPage').textContent = currentPage;
             document.getElementById('totalPages').textContent = totalPages;
             document.getElementById('prevPage').disabled = currentPage <= 1;
@@ -487,153 +225,273 @@
         }
 
         function changePage(delta) {
-            const newPage = currentPage + delta;
-            if (newPage >= 1 && newPage <= totalPages) {
-                loadUsers(newPage);
-            }
+            const np = currentPage + delta;
+            if (np >= 1 && np <= totalPages) loadUsers(np);
         }
 
+        // ==================== ユーザー詳細モーダル ====================
         async function showUserDetail(userId) {
-            const modal = document.getElementById('userDetailModal');
-            const content = document.getElementById('userDetailContent');
-            const userIdSpan = document.getElementById('modalUserId');
-
-            modal.style.display = 'block';
-            currentDetailUserId = userId;
-            userIdSpan.textContent = userId;
+            openModal('userModal');
+            document.getElementById('modalUserId').textContent = userId;
             document.getElementById('modalDeleteBtn').onclick = () => deleteUser(userId);
-            content.innerHTML = '<div class="loading">読み込み中...</div>';
+            document.getElementById('userDetailContent').innerHTML = '<div class="loading">読み込み中...</div>';
 
             try {
                 const detailUrl = pageTenantId
                     ? `/api/users?action=detail&user_id=${userId}&tenant_id=${pageTenantId}`
                     : `/api/users?action=detail&user_id=${userId}`;
-
                 const result = await (await apiGet(detailUrl)).json();
-
-                if (result.status !== 'ok') {
-                    throw new Error(result.message || 'Failed to load user detail');
-                }
+                if (result.status !== 'ok') throw new Error(result.message);
 
                 const user = result.data;
-                const createdDate = new Date(user.created_at).toLocaleString('ja-JP');
 
-                // イベント履歴を取得
-                const eventsUrl = pageTenantId
-                    ? `/api/users?action=events&user_id=${userId}&limit=50&tenant_id=${pageTenantId}`
-                    : `/api/users?action=events&user_id=${userId}&limit=50`;
-
-                let eventsHtml = '<div class="loading">読み込み中...</div>';
+                let eventsHtml = '';
                 try {
+                    const eventsUrl = pageTenantId
+                        ? `/api/users?action=events&user_id=${userId}&limit=50&tenant_id=${pageTenantId}`
+                        : `/api/users?action=events&user_id=${userId}&limit=50`;
                     const eventsResult = await (await apiGet(eventsUrl)).json();
                     if (eventsResult.status === 'ok' && eventsResult.data.events.length > 0) {
-                        eventsHtml = eventsResult.data.events.map(event => {
-                            const eventDate = new Date(event.created_at).toLocaleString('ja-JP');
-                            const eventTypeClass = event.event_type === 'sent' ? 'sent' :
-                                                  event.event_type === 'open' ? 'open' : 'click';
-                            return `
-                                <div class="event-item">
-                                    <div>
-                                        <span class="event-type ${eventTypeClass}">${getEventTypeLabel(event.event_type)}</span>
-                                        <span style="margin-left: 10px;">${escapeHtml(event.notification_title)}</span>
-                                    </div>
-                                    <div style="color: #666; font-size: 12px;">${eventDate}</div>
+                        eventsHtml = eventsResult.data.events.map(ev => {
+                            const typeLabel = { sent: '送信', open: '開封', click: 'クリック' }[ev.event_type] || ev.event_type;
+                            const typeClass = { sent: 'badge-info', open: 'badge-success', click: 'badge-primary' }[ev.event_type] || 'badge-neutral';
+                            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--color-border);">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <span class="badge ${typeClass}">${typeLabel}</span>
+                                    <span style="font-size:13px;">${escapeHtml(ev.notification_title)}</span>
                                 </div>
-                            `;
+                                <span style="font-size:12px; color:var(--color-text-muted);">${new Date(ev.created_at).toLocaleString('ja-JP', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+                            </div>`;
                         }).join('');
                     } else {
-                        eventsHtml = '<p style="color: #666; text-align: center; padding: 20px;">イベント履歴がありません</p>';
+                        eventsHtml = '<p class="no-data">イベント履歴がありません</p>';
                     }
-                } catch (eventsErr) {
-                    eventsHtml = '<p style="color: #666; text-align: center; padding: 20px;">イベント履歴がありません</p>';
+                } catch (e) {
+                    eventsHtml = '<p class="no-data">イベント履歴を取得できませんでした</p>';
                 }
 
-                content.innerHTML = `
-                    <div class="user-detail-stats">
-                        <div class="detail-stat">
-                            <div class="label">デバイス</div>
-                            <div class="value">${escapeHtml(user.device_info)}</div>
-                        </div>
-                        <div class="detail-stat">
-                            <div class="label">登録日</div>
-                            <div class="value" style="font-size: 14px;">${createdDate}</div>
-                        </div>
-                        <div class="detail-stat">
-                            <div class="label">受信数</div>
-                            <div class="value">${user.stats.total_sent}</div>
-                        </div>
-                        <div class="detail-stat">
-                            <div class="label">開封数</div>
-                            <div class="value">${user.stats.total_opened}</div>
-                        </div>
-                        <div class="detail-stat">
-                            <div class="label">クリック数</div>
-                            <div class="value">${user.stats.total_clicked}</div>
-                        </div>
-                        <div class="detail-stat">
-                            <div class="label">CTR</div>
-                            <div class="value">${user.stats.ctr.toFixed(1)}%</div>
-                        </div>
+                document.getElementById('userDetailContent').innerHTML = `
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; margin-bottom:20px;">
+                        ${[
+                            ['デバイス', escapeHtml(user.device_info)],
+                            ['登録日', new Date(user.created_at).toLocaleDateString('ja-JP')],
+                            ['受信数', user.stats.total_sent],
+                            ['開封数', user.stats.total_opened],
+                            ['クリック数', user.stats.total_clicked],
+                            ['CTR', user.stats.ctr.toFixed(1) + '%'],
+                        ].map(([label, val]) => `
+                            <div style="background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius); padding:14px; text-align:center;">
+                                <div style="font-size:11px; color:var(--color-text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px;">${label}</div>
+                                <div style="font-size:18px; font-weight:700; color:var(--color-text);">${val}</div>
+                            </div>`).join('')}
                     </div>
-                    <div class="events-list">
-                        <h3>イベント履歴</h3>
-                        <div style="background: #f8f9fa; border-radius: 8px; padding: 10px;">
-                            ${eventsHtml}
-                        </div>
-                    </div>
-                `;
+                    <div>
+                        <div style="font-size:13px; font-weight:600; margin-bottom:10px; color:var(--color-text-muted);">イベント履歴</div>
+                        ${eventsHtml}
+                    </div>`;
             } catch (err) {
-                console.error('Error loading user detail:', err);
-                content.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 20px;">エラー: ' + err.message + '</div>';
+                document.getElementById('userDetailContent').innerHTML =
+                    `<p style="color:var(--color-danger); text-align:center; padding:20px;">エラー: ${escapeHtml(err.message)}</p>`;
             }
-        }
-
-        function closeModal() {
-            document.getElementById('userDetailModal').style.display = 'none';
-            currentDetailUserId = null;
-        }
-
-        function getEventTypeLabel(eventType) {
-            const labels = {
-                'sent': '送信',
-                'open': '開封',
-                'click': 'クリック'
-            };
-            return labels[eventType] || eventType;
         }
 
         async function deleteUser(userId) {
-            if (!await confirmDialog('ユーザー削除', `ユーザー #${userId} を削除しますか？\nこの操作は取り消せません。通知履歴・ステップ配信進捗も削除されます。`, '削除する', true)) return;
-
+            if (!await confirmDialog('ユーザー削除', `ユーザー #${userId} を削除しますか？\n通知履歴・ステップ配信進捗も削除されます。`, '削除する', true)) return;
             try {
-                const body = { user_id: userId };
-                const url = pageTenantId
-                    ? `/api/users?action=delete&tenant_id=${pageTenantId}`
-                    : `/api/users?action=delete`;
-
-                const result = await apiPost(url, body);
-
+                const url = pageTenantId ? `/api/users?action=delete&tenant_id=${pageTenantId}` : `/api/users?action=delete`;
+                const response = await apiPost(url, { user_id: userId });
+                const result = await response.json();
                 if (result.status !== 'ok') {
-                    const errMsg = result.detail ? `${result.message}: ${result.detail}` : (result.message || '削除に失敗しました');
-                    throw new Error(errMsg);
+                    throw new Error(result.detail ? `${result.message}: ${result.detail}` : result.message);
                 }
-
                 toast('success', '削除完了', 'ユーザーを削除しました');
-                closeModal();
+                closeModal('userModal');
                 await loadUsers(currentPage);
             } catch (err) {
-                console.error('Error deleting user:', err);
-                toast('error', 'エラー', 'エラー: ' + err.message);
+                toast('error', '削除失敗', err.message);
             }
         }
 
-        // モーダル外クリックで閉じる
-        window.onclick = function(event) {
-            const modal = document.getElementById('userDetailModal');
-            if (event.target === modal) {
-                closeModal();
+        // ==================== セグメント管理 ====================
+        async function loadSegments() {
+            const container = document.getElementById('segmentsList');
+            container.innerHTML = '<div class="loading">読み込み中...</div>';
+            try {
+                const url = pageTenantId ? `/api/segments?action=list&tenant_id=${pageTenantId}` : '/api/segments?action=list';
+                const result = await (await apiGet(url)).json();
+                if (result.status !== 'ok') throw new Error(result.message);
+
+                const segments = result.data || [];
+                if (segments.length === 0) {
+                    container.innerHTML = `<div class="no-data" style="padding:40px; text-align:center;">
+                        <div style="font-size:32px; margin-bottom:12px;">📂</div>
+                        <div style="color:var(--color-text-muted);">セグメントがまだありません</div>
+                        <button class="btn btn-primary" style="margin-top:16px;" onclick="openSegmentModal()">+ 最初のセグメントを作成</button>
+                    </div>`;
+                    return;
+                }
+
+                container.innerHTML = `<div class="table-wrap">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>セグメント名</th>
+                                <th>説明</th>
+                                <th>ユーザー数</th>
+                                <th>タイプ</th>
+                                <th>作成日</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${segments.map(seg => `<tr>
+                                <td style="font-weight:600;">${escapeHtml(seg.name)}</td>
+                                <td style="color:var(--color-text-muted); font-size:13px;">${escapeHtml(seg.description || '-')}</td>
+                                <td>${(seg.user_count || 0).toLocaleString()}人</td>
+                                <td><span class="badge ${seg.is_dynamic ? 'badge-primary' : 'badge-neutral'}">${seg.is_dynamic ? '動的' : '静的'}</span></td>
+                                <td style="color:var(--color-text-muted); font-size:13px;">${new Date(seg.created_at).toLocaleDateString('ja-JP')}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+            } catch (err) {
+                container.innerHTML = `<p class="error-message" style="padding:20px;">読み込みエラー: ${escapeHtml(err.message)}</p>`;
             }
         }
+
+        function openSegmentModal() {
+            document.getElementById('segName').value = '';
+            document.getElementById('segDesc').value = '';
+            document.getElementById('conditionsContainer').innerHTML = '';
+            document.getElementById('previewResult').innerHTML = '';
+            conditionCounter = 0;
+            addCondition();
+            openModal('segmentModal');
+        }
+
+        function addCondition() {
+            conditionCounter++;
+            const id = conditionCounter;
+            const html = `<div class="condition-row" id="cond-${id}">
+                <select id="field-${id}" onchange="updateConditionInputs(${id})">
+                    <option value="registered_days_ago">登録日</option>
+                    <option value="device_type">デバイス</option>
+                    <option value="browser">ブラウザ</option>
+                    <option value="engagement_level">エンゲージメント</option>
+                </select>
+                <select id="op-${id}">
+                    <option value="lte">以内</option>
+                    <option value="gte">以上</option>
+                </select>
+                <input type="number" id="val-${id}" min="0" placeholder="日数" style="width:80px;">
+                <button class="remove-condition" onclick="removeCondition(${id})">✕</button>
+            </div>`;
+            document.getElementById('conditionsContainer').insertAdjacentHTML('beforeend', html);
+        }
+
+        function removeCondition(id) {
+            const el = document.getElementById('cond-' + id);
+            if (el) el.remove();
+        }
+
+        function updateConditionInputs(id) {
+            const field = document.getElementById('field-' + id).value;
+            const opSel = document.getElementById('op-' + id);
+            const valInput = document.getElementById('val-' + id);
+
+            if (field === 'registered_days_ago') {
+                opSel.innerHTML = '<option value="lte">以内</option><option value="gte">以上前</option>';
+                opSel.style.display = '';
+                valInput.type = 'number';
+                valInput.placeholder = '日数';
+                valInput.style.display = '';
+            } else if (field === 'device_type') {
+                opSel.innerHTML = '<option value="eq">が</option>';
+                opSel.style.display = '';
+                valInput.type = 'text';
+                valInput.placeholder = 'mobile / desktop / tablet';
+                valInput.style.display = '';
+            } else if (field === 'browser') {
+                opSel.innerHTML = '<option value="eq">が</option>';
+                opSel.style.display = '';
+                valInput.type = 'text';
+                valInput.placeholder = 'Chrome / Safari / Firefox';
+                valInput.style.display = '';
+            } else if (field === 'engagement_level') {
+                opSel.innerHTML = '<option value="eq">が</option>';
+                opSel.style.display = '';
+                valInput.type = 'text';
+                valInput.placeholder = 'active / inactive';
+                valInput.style.display = '';
+            }
+        }
+
+        function buildFilterConditions() {
+            const rows = document.querySelectorAll('.condition-row');
+            const conditions = [];
+            for (const row of rows) {
+                const id = row.id.replace('cond-', '');
+                const field = document.getElementById('field-' + id).value;
+                const op = document.getElementById('op-' + id).value;
+                const rawVal = document.getElementById('val-' + id).value.trim();
+                if (!rawVal) continue;
+                const value = (field === 'registered_days_ago') ? parseInt(rawVal) : rawVal;
+                conditions.push({ field, operator: op, value });
+            }
+            return { conditions };
+        }
+
+        async function previewSegment() {
+            const conditions = buildFilterConditions();
+            const previewEl = document.getElementById('previewResult');
+            previewEl.innerHTML = '<span style="font-size:13px; color:var(--color-text-muted);">プレビュー中...</span>';
+            try {
+                const body = { filter_conditions: conditions };
+                if (pageTenantId) body.tenant_id = pageTenantId;
+                const response = await apiPost('/api/segments?action=preview', body);
+                const result = await response.json();
+                if (result.status === 'ok') {
+                    previewEl.innerHTML = `<div style="padding:12px 14px; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius); font-size:14px; margin-top:4px;">
+                        対象ユーザー数: <strong style="color:var(--color-primary); font-size:18px;">${result.data.user_count.toLocaleString()}</strong> 人
+                    </div>`;
+                } else {
+                    previewEl.innerHTML = `<p class="error-message">${escapeHtml(result.message)}</p>`;
+                }
+            } catch (err) {
+                previewEl.innerHTML = `<p class="error-message">エラー: ${escapeHtml(err.message)}</p>`;
+            }
+        }
+
+        async function createSegment() {
+            const name = document.getElementById('segName').value.trim();
+            if (!name) { toast('error', '入力エラー', 'セグメント名を入力してください'); return; }
+            const conditions = buildFilterConditions();
+            try {
+                const body = { name, description: document.getElementById('segDesc').value.trim(), filter_conditions: conditions };
+                if (pageTenantId) body.tenant_id = pageTenantId;
+                const response = await apiPost('/api/segments?action=create', body);
+                const result = await response.json();
+                if (result.status === 'ok') {
+                    toast('success', '作成完了', `セグメント「${name}」を作成しました`);
+                    closeModal('segmentModal');
+                    loadSegments();
+                } else {
+                    toast('error', '作成失敗', result.message);
+                }
+            } catch (err) {
+                toast('error', 'エラー', err.message);
+            }
+        }
+
+        // ==================== モーダル共通 ====================
+        function openModal(id) { document.getElementById(id).classList.add('visible'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
+
+        window.addEventListener('click', e => {
+            ['userModal', 'segmentModal'].forEach(id => {
+                const el = document.getElementById(id);
+                if (e.target === el) closeModal(id);
+            });
+        });
     </script>
 </body>
 </html>
