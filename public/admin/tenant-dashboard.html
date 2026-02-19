@@ -231,26 +231,17 @@
             if (!tenantId) return;
             const container = document.getElementById('recentNotifications');
             try {
-                const [notifRes, analyticsRes] = await Promise.all([
-                    apiGet(`/api/notifications/list?tenant_id=${tenantId}`),
-                    apiGet(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`)
-                ]);
-
-                if (!notifRes || !notifRes.ok) {
+                // analyticsAPIは送信済みのみをsend_at DESCで返す + パフォーマンス付き
+                const res = await apiGet(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`);
+                if (!res || !res.ok) {
                     container.innerHTML = '<div class="loading">読み込みエラー</div>';
                     return;
                 }
-
-                const notifResult = await notifRes.json();
-                const analyticsResult = analyticsRes && analyticsRes.ok ? await analyticsRes.json() : { data: [] };
-
-                const perfMap = {};
-                (analyticsResult.data || []).forEach(item => { perfMap[item.id] = item.performance; });
-
-                const notifications = (notifResult.data || []).slice(0, 10);
+                const result = await res.json();
+                const notifications = result.data || [];
 
                 if (notifications.length === 0) {
-                    container.innerHTML = '<div class="loading" style="padding:40px;">通知がまだありません</div>';
+                    container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--color-text-muted);">送信済みの通知がまだありません</div>';
                     return;
                 }
 
@@ -263,33 +254,19 @@
                                 <th>送信数</th>
                                 <th>開封率</th>
                                 <th>CTR</th>
-                                <th>ステータス</th>
-                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             ${notifications.map(notif => {
-                                const perf = perfMap[notif.id] || { total_sent: 0, open_rate: 0, ctr: 0 };
-                                const sendDate = notif.send_at ? new Date(notif.send_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-';
-                                const isSent = notif.sent || notif.status === 'sent';
-                                const isFailed = notif.status === 'failed' || notif.status === 'no_target_users';
-                                let badge = '';
-                                if (isSent)        badge = '<span class="badge badge-success">送信済</span>';
-                                else if (isFailed)  badge = '<span class="badge badge-danger">失敗</span>';
-                                else               badge = '<span class="badge badge-warning">予約済</span>';
-
-                                const sendBtn = (!isSent && !isFailed)
-                                    ? `<button class="btn btn-success btn-sm" onclick="sendNow(${notif.id}, event)">今すぐ送る</button>`
-                                    : '';
-
+                                const sendDate = notif.send_at
+                                    ? new Date(notif.send_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+                                    : '-';
                                 return `<tr>
-                                    <td style="font-weight:500; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(notif.title || '')}</td>
+                                    <td style="font-weight:500; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(notif.title || '')}</td>
                                     <td style="white-space:nowrap; color:var(--color-text-muted);">${sendDate}</td>
-                                    <td>${formatNumber(perf.total_sent)}</td>
-                                    <td>${formatPercent(perf.open_rate)}</td>
-                                    <td>${formatPercent(perf.ctr)}</td>
-                                    <td>${badge}</td>
-                                    <td>${sendBtn}</td>
+                                    <td>${formatNumber(notif.performance?.total_sent || 0)}</td>
+                                    <td>${formatPercent(notif.performance?.open_rate || 0)}</td>
+                                    <td>${formatPercent(notif.performance?.ctr || 0)}</td>
                                 </tr>`;
                             }).join('')}
                         </tbody>
@@ -297,28 +274,6 @@
             } catch (err) {
                 console.error('Failed to load notifications:', err);
                 container.innerHTML = '<div class="loading">読み込みエラー</div>';
-            }
-        }
-
-        async function sendNow(notificationId, event) {
-            if (!await confirmDialog('今すぐ送信', 'この通知を今すぐ全ユーザーに送信しますか？', '送信する')) return;
-
-            const btn = event?.target;
-            if (btn) { btn.disabled = true; btn.textContent = '送信中...'; }
-
-            try {
-                const response = await apiPost('/api/notifications/list?action=send-now', { notification_id: notificationId });
-                const result = await response.json();
-                if (result.status === 'ok') {
-                    toast('success', '送信完了', `成功: ${result.sent_count}件 / 失敗: ${result.error_count}件`);
-                    await loadRecentNotifications();
-                } else {
-                    toast('error', '送信失敗', result.message);
-                    if (btn) { btn.disabled = false; btn.textContent = '今すぐ送る'; }
-                }
-            } catch (error) {
-                toast('error', 'エラー', error.message);
-                if (btn) { btn.disabled = false; btn.textContent = '今すぐ送る'; }
             }
         }
 
