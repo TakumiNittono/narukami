@@ -86,19 +86,6 @@
                 </div>
             </div>
 
-            <!-- 最近の通知 -->
-            <div class="card" style="margin-bottom: 24px;">
-                <div class="card-header">
-                    <span class="card-title">最近の通知</span>
-                    <a href="/admin/create" class="btn btn-primary btn-sm">新規作成</a>
-                </div>
-                <div class="card-body" style="padding:0;">
-                    <div class="table-wrap" id="recentNotifications">
-                        <div class="loading">読み込み中...</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- グラフエリア -->
             <div class="charts-section">
                 <div class="card">
@@ -144,7 +131,6 @@
             await loadTenantInfo();
             await Promise.all([
                 loadKPIs(),
-                loadRecentNotifications(),
                 loadChart('30d')
             ]);
         }
@@ -227,55 +213,6 @@
             ['kpiMonthlySent','kpiPendingTasks'].forEach(id => document.getElementById(id).textContent = '0');
         }
 
-        async function loadRecentNotifications() {
-            if (!tenantId) return;
-            const container = document.getElementById('recentNotifications');
-            try {
-                // analyticsAPIは送信済みのみをsend_at DESCで返す + パフォーマンス付き
-                const res = await apiGet(`/api/analytics?type=notifications&limit=10&tenant_id=${tenantId}`);
-                if (!res || !res.ok) {
-                    container.innerHTML = '<div class="loading">読み込みエラー</div>';
-                    return;
-                }
-                const result = await res.json();
-                const notifications = result.data || [];
-
-                if (notifications.length === 0) {
-                    container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--color-text-muted);">送信済みの通知がまだありません</div>';
-                    return;
-                }
-
-                container.innerHTML = `
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>タイトル</th>
-                                <th>送信日時</th>
-                                <th>送信数</th>
-                                <th>開封率</th>
-                                <th>CTR</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${notifications.map(notif => {
-                                const sendDate = notif.send_at
-                                    ? new Date(notif.send_at).toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
-                                    : '-';
-                                return `<tr>
-                                    <td style="font-weight:500; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(notif.title || '')}</td>
-                                    <td style="white-space:nowrap; color:var(--color-text-muted);">${sendDate}</td>
-                                    <td>${formatNumber(notif.performance?.total_sent || 0)}</td>
-                                    <td>${formatPercent(notif.performance?.open_rate || 0)}</td>
-                                    <td>${formatPercent(notif.performance?.ctr || 0)}</td>
-                                </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>`;
-            } catch (err) {
-                console.error('Failed to load notifications:', err);
-                container.innerHTML = '<div class="loading">読み込みエラー</div>';
-            }
-        }
 
         function setPeriod(period, btn) {
             document.querySelectorAll('.chart-period .period-btn').forEach(b => b.classList.remove('active'));
