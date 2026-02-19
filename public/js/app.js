@@ -179,7 +179,7 @@ async function requestNotificationPermission() {
 
             if (result.status === 'ok') {
                 // 登録完了画面へ遷移
-                window.location.href = '/thanks';
+                window.location.href = '/complete';
             } else {
                 throw new Error(result.message || '登録に失敗しました');
             }

@@ -2,7 +2,7 @@
     "name": "Narukami",
     "short_name": "Narukami",
     "description": "プッシュ通知でお知らせを受け取れます",
-    "start_url": "/",
+    "start_url": "/app",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#4A90D9",

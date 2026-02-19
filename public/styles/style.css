@@ -222,6 +222,189 @@ h1 {
     color: #999;
 }
 
+/* === LP === */
+.lp-container .features ul {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 30px;
+}
+
+.lp-container .features li {
+    padding: 10px 0;
+    font-size: 16px;
+    color: #555;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.lp-container .features li:last-child {
+    border-bottom: none;
+}
+
+.lp-container .features li::before {
+    content: "✓ ";
+    color: #4A90D9;
+    font-weight: bold;
+}
+
+/* === ボタン汎用 === */
+.btn-link {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+}
+
+.btn-secondary {
+    background: #f4f4f4;
+    color: #555;
+    border: none;
+    padding: 14px 32px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #e8e8e8;
+}
+
+.btn-line {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    background: #06C755;
+    color: white;
+    border: none;
+    padding: 16px 32px;
+    font-size: 18px;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s;
+    box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
+}
+
+.btn-line:hover {
+    background: #05b34b;
+}
+
+/* === ガイドページ === */
+.guide-steps {
+    margin-bottom: 20px;
+}
+
+.step-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: #f9f9ff;
+    border: 1px solid #e8e8f4;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    background: #4A90D9;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.step-body {
+    flex: 1;
+    padding-top: 6px;
+}
+
+.step-text {
+    font-size: 15px;
+    color: #444;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.guide-note {
+    font-size: 13px;
+    color: #999;
+    text-align: center;
+    margin-top: 8px;
+    margin-bottom: 24px;
+}
+
+/* === 登録完了ページ === */
+.complete-content {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.complete-content h1 {
+    font-size: 28px;
+    margin-bottom: 16px;
+    color: #333;
+}
+
+.complete-content p {
+    font-size: 17px;
+    color: #666;
+    line-height: 1.7;
+    margin-bottom: 32px;
+}
+
+.complete-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* === ホームページ === */
+.home-content {
+    text-align: center;
+    padding: 10px 0;
+}
+
+.home-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #efffef;
+    border: 1px solid #c3f0c3;
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-size: 15px;
+    color: #2d8a2d;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    background: #06C755;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.home-desc {
+    font-size: 15px;
+    color: #777;
+    line-height: 1.8;
+}
+
 /* レスポンシブ */
 @media (max-width: 480px) {
     .container {

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="かんたん登録ガイド - Narukami">
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4A90D9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Narukami">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+    <title>かんたん登録 - Narukami</title>
+    <link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">📲</div>
+            <h1>かんたん登録</h1>
+            <p class="subtitle" id="guide-subtitle">手順にそって設定してください</p>
+        </div>
+
+        <div class="content" id="guide-content">
+            <!-- JavaScriptで挿入 -->
+        </div>
+    </div>
+
+    <script>
+        // PWAモード判定 → すでにインストール済みなら /app へ
+        function isPWA() {
+            return window.matchMedia('(display-mode: standalone)').matches
+                || window.navigator.standalone === true;
+        }
+
+        if (isPWA()) {
+            window.location.replace('/app');
+        }
+
+        // デバイス判定
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+
+        const content = document.getElementById('guide-content');
+
+        if (isIOS) {
+            document.getElementById('guide-subtitle').textContent = 'iPhoneの方はこの手順で追加します';
+            content.innerHTML = `
+                <div class="guide-steps">
+                    <div class="step-card">
+                        <div class="step-number">1</div>
+                        <div class="step-body">
+                            <p class="step-text">Safari 下部の <span class="share-icon">⬆</span> ボタンをタップ</p>
+                        </div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">2</div>
+                        <div class="step-body">
+                            <p class="step-text">「ホーム画面に追加」を選択</p>
+                        </div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">3</div>
+                        <div class="step-body">
+                            <p class="step-text">右上の「追加」をタップ</p>
+                        </div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">4</div>
+                        <div class="step-body">
+                            <p class="step-text">ホーム画面の <strong>Narukami</strong> アイコンをタップして開く</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="guide-note">※ ホーム画面から開くと通知を設定できます</p>
+            `;
+        } else if (isAndroid) {
+            document.getElementById('guide-subtitle').textContent = 'Androidの方はこの手順で追加します';
+            content.innerHTML = `
+                <div class="guide-steps">
+                    <div class="step-card">
+                        <div class="step-number">1</div>
+                        <div class="step-body">
+                            <p class="step-text">Chrome 右上の <strong>⋮</strong> メニューをタップ</p>
+                        </div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">2</div>
+                        <div class="step-body">
+                            <p class="step-text">「ホーム画面に追加」または「アプリをインストール」を選択</p>
+                        </div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">3</div>
+                        <div class="step-body">
+                            <p class="step-text">「追加」をタップ</p>
+                        </div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">4</div>
+                        <div class="step-body">
+                            <p class="step-text">ホーム画面の <strong>Narukami</strong> アイコンをタップして開く</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="guide-note">※ ホーム画面から開くと通知を設定できます</p>
+            `;
+        } else {
+            // PC などその他デバイス
+            document.getElementById('guide-subtitle').textContent = 'スマートフォンからアクセスしてください';
+            content.innerHTML = `
+                <div class="guide-steps">
+                    <div class="step-card">
+                        <div class="step-number">📱</div>
+                        <div class="step-body">
+                            <p class="step-text">このページをスマートフォンで開いてください</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="guide-note">プッシュ通知はスマートフォン（iOS / Android）に対応しています</p>
+            `;
+        }
+    </script>
+</body>
+</html>
