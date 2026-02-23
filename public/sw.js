@@ -1,5 +1,5 @@
 // PWA用Service Worker
-const CACHE_NAME = 'narukami-v2';
+const CACHE_NAME = 'admin-v3';
 const CACHE_URLS = [
     '/',
     '/thanks.html',
@@ -101,7 +101,7 @@ self.addEventListener('push', (event) => {
                     user_id: notificationData.user_id
                 },
                 requireInteraction: false,
-                tag: 'narukami-notification'
+                tag: 'admin-notification'
             }),
             // 開封イベントをトラッキング
             notificationData.notification_id ? trackEvent('open', {
@@ -137,9 +137,16 @@ self.addEventListener('notificationclick', (event) => {
             trackPromise,
             clients.matchAll({ type: 'window', includeUncontrolled: true })
                 .then((clientList) => {
-                    // 既存のウィンドウがあればフォーカス
+                    // 外部URLの場合は直接新しいウィンドウで開く
+                    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+                        if (clients.openWindow) {
+                            return clients.openWindow(targetUrl);
+                        }
+                        return;
+                    }
+                    // 内部URLの場合、既存のウィンドウがあればフォーカス
                     for (const client of clientList) {
-                        if (client.url === targetUrl && 'focus' in client) {
+                        if (client.url.includes(targetUrl) && 'focus' in client) {
                             return client.focus();
                         }
                     }
