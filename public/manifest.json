@@ -1,6 +1,6 @@
 {
-    "name": "Narukami",
-    "short_name": "Narukami",
+    "name": "運営管理事務局",
+    "short_name": "運営管理事務局",
     "description": "プッシュ通知でお知らせを受け取れます",
     "start_url": "/app",
     "display": "standalone",

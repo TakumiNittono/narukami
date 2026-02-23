@@ -135,7 +135,7 @@ function _injectNav(user) {
 
     root.innerHTML = `
         <nav class="admin-nav">
-            <a class="admin-nav-logo" href="/admin/dashboard">Narukami</a>
+            <a class="admin-nav-logo" href="/admin/dashboard">運営管理事務局</a>
             <div class="admin-nav-links">${linksHtml}</div>
             <div class="admin-nav-right">
                 <span class="admin-nav-email">${escapeHtml(email)}</span>
