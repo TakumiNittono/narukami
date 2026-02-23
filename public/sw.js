@@ -1,5 +1,5 @@
 // PWA用Service Worker
-const CACHE_NAME = 'admin-v6';
+const CACHE_NAME = 'admin-v7';
 const CACHE_URLS = [
     '/',
     '/thanks.html',
@@ -91,7 +91,7 @@ self.addEventListener('push', (event) => {
         Promise.all([
             // 通知を表示（タイトルを上に、fromを本文に）
             self.registration.showNotification(notificationData.title, {
-                body: 'from 運営事務局\n' + notificationData.body,
+                body: notificationData.body,
                 icon: notificationData.icon,
                 badge: notificationData.badge,
                 data: {
