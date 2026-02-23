@@ -1,5 +1,5 @@
 // PWA用Service Worker
-const CACHE_NAME = 'admin-v7';
+const CACHE_NAME = 'admin-v8';
 const CACHE_URLS = [
     '/',
     '/thanks.html',
@@ -57,6 +57,8 @@ self.addEventListener('fetch', (event) => {
 // Push通知受信処理
 self.addEventListener('push', (event) => {
     console.log('[SW] Push通知受信:', event);
+    // 次回以降のpushで最新SWが使われるよう更新チェック
+    self.registration.update().catch(() => {});
     
     let notificationData = {
         title: 'お知らせ',
