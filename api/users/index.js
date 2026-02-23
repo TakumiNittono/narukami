@@ -28,6 +28,11 @@ export default async function handler(req, res) {
                 return res.status(405).json({ status: 'error', message: 'Method not allowed' });
             }
             return await handleDelete(req, res, tenantId);
+        } else if (action === 'delete-all') {
+            if (req.method !== 'POST') {
+                return res.status(405).json({ status: 'error', message: 'Method not allowed' });
+            }
+            return await handleDeleteAll(req, res, tenantId);
         } else {
             return res.status(400).json({ status: 'error', message: 'Invalid action parameter' });
         }
@@ -397,5 +402,71 @@ async function handleDelete(req, res, tenantId) {
         status: 'ok',
         message: 'User deleted successfully',
         data: { deleted_id: userId }
+    });
+}
+
+// ユーザー一括削除
+async function handleDeleteAll(req, res, tenantId) {
+    // 削除対象のユーザー数を取得
+    let countQuery = supabaseAdmin
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+
+    if (tenantId) {
+        countQuery = countQuery.eq('tenant_id', tenantId);
+    }
+
+    const { count, error: countError } = await countQuery;
+    if (countError) {
+        console.error('Count error:', countError);
+        return res.status(500).json({ status: 'error', message: 'Failed to count users' });
+    }
+
+    if (!count || count === 0) {
+        return res.status(200).json({ status: 'ok', message: 'No users to delete', data: { deleted_count: 0 } });
+    }
+
+    // 関連イベントを先に削除（外部キー制約対応）
+    let userIdsQuery = supabaseAdmin.from('users').select('id');
+    if (tenantId) {
+        userIdsQuery = userIdsQuery.eq('tenant_id', tenantId);
+    }
+    const { data: userRows } = await userIdsQuery;
+    const userIds = (userRows || []).map(u => u.id);
+
+    if (userIds.length > 0) {
+        // notification_events を削除
+        await supabaseAdmin
+            .from('notification_events')
+            .delete()
+            .in('user_id', userIds);
+
+        // step_delivery_status を削除
+        await supabaseAdmin
+            .from('step_delivery_status')
+            .delete()
+            .in('user_id', userIds);
+    }
+
+    // ユーザーを一括削除
+    let deleteQuery = supabaseAdmin.from('users').delete();
+    if (tenantId) {
+        deleteQuery = deleteQuery.eq('tenant_id', tenantId);
+    } else {
+        // tenantIdがない場合は全ユーザー削除（安全のためgte条件を使用）
+        deleteQuery = deleteQuery.gte('id', 0);
+    }
+
+    const { error: deleteError } = await deleteQuery;
+
+    if (deleteError) {
+        console.error('Bulk delete error:', deleteError);
+        return res.status(500).json({ status: 'error', message: 'Failed to delete users', detail: deleteError.message });
+    }
+
+    return res.status(200).json({
+        status: 'ok',
+        message: `${count} users deleted successfully`,
+        data: { deleted_count: count }
     });
 }

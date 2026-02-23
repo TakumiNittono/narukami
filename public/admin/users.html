@@ -13,9 +13,12 @@
         <div class="container">
 
             <!-- ページヘッダー -->
-            <div class="admin-page-header">
-                <h1 class="admin-page-title">ユーザー管理</h1>
-                <p class="admin-page-subtitle">登録ユーザーの確認・セグメント管理を行います</p>
+            <div class="admin-page-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <h1 class="admin-page-title">ユーザー管理</h1>
+                    <p class="admin-page-subtitle">登録ユーザーの確認・セグメント管理を行います</p>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="deleteAllUsers()" style="white-space:nowrap;">全ユーザー削除</button>
             </div>
 
             <!-- KPIカード -->
@@ -479,6 +482,23 @@
                 }
             } catch (err) {
                 toast('error', 'エラー', err.message);
+            }
+        }
+
+        // ==================== 一括削除 ====================
+        async function deleteAllUsers() {
+            var total = document.getElementById('totalUsers').textContent;
+            if (!await confirmDialog('全ユーザー削除', '全 ' + total + ' 人のユーザーを削除します。\n通知履歴・ステップ配信進捗も全て削除されます。\n\nこの操作は取り消せません。', '全て削除する', true)) return;
+
+            try {
+                var url = pageTenantId ? '/api/users?action=delete-all&tenant_id=' + pageTenantId : '/api/users?action=delete-all';
+                var response = await apiPost(url, {});
+                var result = await response.json();
+                if (result.status !== 'ok') throw new Error(result.message);
+                toast('success', '削除完了', result.data.deleted_count + '人のユーザーを削除しました');
+                await loadUsers(1);
+            } catch (err) {
+                toast('error', '削除失敗', err.message);
             }
         }
 
