@@ -1,5 +1,5 @@
 // PWA用Service Worker
-const CACHE_NAME = 'admin-v5';
+const CACHE_NAME = 'admin-v6';
 const CACHE_URLS = [
     '/',
     '/thanks.html',
@@ -101,7 +101,7 @@ self.addEventListener('push', (event) => {
                     user_id: notificationData.user_id
                 },
                 requireInteraction: false,
-                tag: 'admin-notification'
+                tag: 'notif-' + (notificationData.notification_id || Date.now())
             }),
             // 開封イベントをトラッキング
             notificationData.notification_id ? trackEvent('open', {
