@@ -50,13 +50,14 @@
                     </div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="sendAtGroup">
                     <label for="send_at">送信日時 <span class="required">*</span></label>
                     <input type="datetime-local" id="send_at" name="send_at" required class="form-input">
                 </div>
 
                 <div class="form-actions">
                     <button type="submit" class="btn-primary">予約作成</button>
+                    <button type="button" id="sendNowBtn" class="btn-primary" style="background:#10B981;" onclick="handleSendNow()">今すぐ送信</button>
                     <a href="/admin" class="btn-secondary">キャンセル</a>
                 </div>
 
@@ -185,7 +186,7 @@
                 if (!response) { setButtonLoading(submitBtn, false); return; }
                 var result = await response.json();
                 if (result.status === 'ok') {
-                    toast('success', '通知を作成しました');
+                    toast('success', '通知を予約しました');
                     setTimeout(function() { window.location.href = '/admin'; }, 1200);
                 } else {
                     showFormError(result.message || '作成に失敗しました');
@@ -194,6 +195,59 @@
             } catch (error) {
                 showFormError('エラーが発生しました: ' + error.message);
                 setButtonLoading(submitBtn, false);
+            }
+        }
+
+        async function handleSendNow() {
+            var title = document.getElementById('title').value;
+            var body = document.getElementById('body').value;
+            var url = document.getElementById('url').value;
+            var targetType = document.querySelector('input[name="target_type"]:checked').value;
+            var segmentId = document.getElementById('segmentSelect').value;
+
+            if (!title || !body) { showFormError('タイトルと本文は必須です'); return; }
+            if (targetType === 'segment' && !segmentId) { showFormError('セグメントを選択してください'); return; }
+
+            if (!confirm('今すぐ全対象ユーザーに送信します。よろしいですか？')) return;
+
+            var sendNowBtn = document.getElementById('sendNowBtn');
+            setButtonLoading(sendNowBtn, true, '送信中...');
+
+            try {
+                // まず通知レコードを作成（send_at=現在時刻）
+                var now = new Date();
+                var send_at = now.getFullYear() + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+                var payload = { title, body, url, send_at, target_type: targetType };
+                if (targetType === 'segment') payload.target_segment_id = parseInt(segmentId);
+                if (pageTenantId) payload.tenant_id = pageTenantId;
+
+                var createRes = await apiPost('/api/notifications/create', payload);
+                if (!createRes) { setButtonLoading(sendNowBtn, false); return; }
+                var createResult = await createRes.json();
+
+                if (createResult.status !== 'ok') {
+                    showFormError(createResult.message || '通知の作成に失敗しました');
+                    setButtonLoading(sendNowBtn, false);
+                    return;
+                }
+
+                // 作成した通知を即時送信
+                var notifId = createResult.data.id;
+                var sendRes = await apiPost('/api/notifications/list?action=send-now', { notification_id: notifId });
+                if (!sendRes) { setButtonLoading(sendNowBtn, false); return; }
+                var sendResult = await sendRes.json();
+
+                if (sendResult.status === 'ok') {
+                    toast('success', sendResult.sent_count + '件に送信しました');
+                    setTimeout(function() { window.location.href = '/admin'; }, 1200);
+                } else {
+                    showFormError(sendResult.message || '送信に失敗しました');
+                    setButtonLoading(sendNowBtn, false);
+                }
+            } catch (error) {
+                showFormError('エラーが発生しました: ' + error.message);
+                setButtonLoading(sendNowBtn, false);
             }
         }
     </script>
