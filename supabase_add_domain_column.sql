@@ -60,14 +60,14 @@ CREATE INDEX IF NOT EXISTS idx_tenant_domains_domain ON tenant_domains (domain);
 -- 4. デフォルトテナントを作成してドメインを設定
 -- ============================================
 INSERT INTO tenants (name, plan, monthly_limit, monthly_fee, status, domain)
-VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'narukami-six.vercel.app')
+VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'admin-mvp-six.vercel.app')
 ON CONFLICT (id) DO UPDATE 
 SET domain = EXCLUDED.domain
 WHERE tenants.domain IS NULL;
 
 -- 既存のテナントにドメインが設定されていない場合、デフォルトドメインを設定
 UPDATE tenants 
-SET domain = 'narukami-six.vercel.app'
+SET domain = 'admin-mvp-six.vercel.app'
 WHERE domain IS NULL 
 AND id = (SELECT id FROM tenants WHERE name = 'デフォルトテナント' LIMIT 1);
 

@@ -1,5 +1,5 @@
 /**
- * NARUKAMI Admin - Shared Auth & UI Layer
+ * 運営管理事務局 Admin - Shared Auth & UI Layer
  * Supabase Google OAuth + Nav injection + Toast + Skeleton
  */
 

@@ -62,7 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_tenant_domains_domain ON tenant_domains (domain);
 -- Step 4: デフォルトテナントを作成（存在しない場合）
 -- ============================================
 INSERT INTO tenants (name, plan, monthly_limit, monthly_fee, status, domain)
-VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'narukami-six.vercel.app')
+VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'admin-mvp-six.vercel.app')
 ON CONFLICT DO NOTHING;
 
 -- デフォルトテナントのIDを取得して、既存ユーザーに設定
@@ -73,13 +73,13 @@ BEGIN
     -- デフォルトテナントを取得
     SELECT id INTO default_tenant_id
     FROM tenants
-    WHERE domain = 'narukami-six.vercel.app'
+    WHERE domain = 'admin-mvp-six.vercel.app'
     LIMIT 1;
     
     -- テナントが存在しない場合は作成
     IF default_tenant_id IS NULL THEN
         INSERT INTO tenants (name, plan, monthly_limit, monthly_fee, status, domain)
-        VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'narukami-six.vercel.app')
+        VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'admin-mvp-six.vercel.app')
         RETURNING id INTO default_tenant_id;
     END IF;
     

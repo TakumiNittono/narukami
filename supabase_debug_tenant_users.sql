@@ -42,7 +42,7 @@ GROUP BY t.id, t.name, t.domain
 ORDER BY t.id;
 
 -- ============================================
--- 4. ドメイン 'narukami-six.vercel.app' のテナントを確認
+-- 4. ドメイン 'admin-mvp-six.vercel.app' のテナントを確認
 -- ============================================
 SELECT 
     t.id,
@@ -51,7 +51,7 @@ SELECT
     COUNT(u.id) as user_count
 FROM tenants t
 LEFT JOIN users u ON u.tenant_id = t.id
-WHERE t.domain = 'narukami-six.vercel.app'
+WHERE t.domain = 'admin-mvp-six.vercel.app'
 GROUP BY t.id, t.name, t.domain;
 
 -- ============================================
@@ -62,14 +62,14 @@ GROUP BY t.id, t.name, t.domain;
 
 -- まず、デフォルトテナントを作成または取得
 INSERT INTO tenants (name, plan, monthly_limit, monthly_fee, status, domain)
-VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'narukami-six.vercel.app')
+VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'admin-mvp-six.vercel.app')
 ON CONFLICT DO NOTHING;
 
 -- 既存ユーザーにtenant_idを設定
 UPDATE users
 SET tenant_id = (
     SELECT id FROM tenants 
-    WHERE domain = 'narukami-six.vercel.app' 
+    WHERE domain = 'admin-mvp-six.vercel.app' 
     LIMIT 1
 )
 WHERE tenant_id IS NULL;

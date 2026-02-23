@@ -11,7 +11,7 @@ ORDER BY id;
 -- 2. テナントが存在しない場合、作成する
 -- ============================================
 INSERT INTO tenants (name, plan, monthly_limit, monthly_fee, status, domain)
-VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'narukami-six.vercel.app')
+VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'admin-mvp-six.vercel.app')
 ON CONFLICT DO NOTHING
 RETURNING id, name, domain;
 
@@ -19,7 +19,7 @@ RETURNING id, name, domain;
 -- 3. 既存のテナントにドメインを設定（domainがNULLの場合）
 -- ============================================
 UPDATE tenants 
-SET domain = 'narukami-six.vercel.app'
+SET domain = 'admin-mvp-six.vercel.app'
 WHERE domain IS NULL 
 AND id = (SELECT id FROM tenants ORDER BY id LIMIT 1);
 

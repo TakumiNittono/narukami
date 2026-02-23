@@ -4,7 +4,7 @@
 -- 1. デフォルトテナントを確認・作成
 -- ============================================
 INSERT INTO tenants (name, plan, monthly_limit, monthly_fee, status, domain)
-VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'narukami-six.vercel.app')
+VALUES ('デフォルトテナント', 'basic', 10000, 100000, 'active', 'admin-mvp-six.vercel.app')
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -13,7 +13,7 @@ ON CONFLICT DO NOTHING;
 UPDATE users
 SET tenant_id = (
     SELECT id FROM tenants 
-    WHERE domain = 'narukami-six.vercel.app' 
+    WHERE domain = 'admin-mvp-six.vercel.app' 
     LIMIT 1
 )
 WHERE tenant_id IS NULL;

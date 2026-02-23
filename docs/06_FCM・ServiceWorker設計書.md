@@ -150,7 +150,7 @@ messaging.onBackgroundMessage((payload) => {
             url: payload.fcmOptions?.link || payload.data?.url || '/'
         },
         requireInteraction: false,
-        tag: 'narukami-notification'
+        tag: 'admin-notification'
     };
 
     return self.registration.showNotification(notificationTitle, notificationOptions);
@@ -181,7 +181,7 @@ self.addEventListener('notificationclick', (event) => {
 ### sw.js（PWA用）
 
 ```javascript
-const CACHE_NAME = 'narukami-v1';
+const CACHE_NAME = 'admin-v1';
 const CACHE_URLS = [
     '/',
     '/thanks',
@@ -225,8 +225,8 @@ self.addEventListener('fetch', (event) => {
 
 ```json
 {
-    "name": "Narukami",
-    "short_name": "Narukami",
+    "name": "運営管理事務局",
+    "short_name": "運営管理事務局",
     "description": "プッシュ通知でお知らせを受け取れます",
     "start_url": "/",
     "display": "standalone",
@@ -288,7 +288,7 @@ if (isIOS() && !isPWA()) {
 ```html
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Narukami">
+<meta name="apple-mobile-web-app-title" content="運営管理事務局">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 ```
 

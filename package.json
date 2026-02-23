@@ -1,5 +1,5 @@
 {
-  "name": "narukami-mvp",
+  "name": "admin-mvp",
   "version": "1.0.0",
   "type": "module",
   "description": "PWA × FCM プッシュ通知 × ステップ配信 MVP",

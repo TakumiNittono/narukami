@@ -441,7 +441,7 @@ async function handleFollowEvent(event) {
 
 | サービス | Web Push | LINE | ステップ配信 | 統合管理 |
 |---|---|---|---|---|
-| **NARUKAMI** | ✅ | ✅ | ✅ | ✅ |
+| **運営管理事務局** | ✅ | ✅ | ✅ | ✅ |
 | **OneSignal** | ✅ | ❌ | ⚠️ | ❌ |
 | **LINE公式アカウント** | ❌ | ✅ | ❌ | ❌ |
 | **国内サービス** | ⚠️ | ⚠️ | ❌ | ❌ |

@@ -1,4 +1,4 @@
-# Narukami MVP
+# 運営管理事務局 MVP
 
 PWA × Web Push 通知 × **ステップ配信**のMVP版
 
