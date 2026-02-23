@@ -48,11 +48,18 @@
             <!-- ユーザー一覧タブ -->
             <div id="tab-users" class="tab-panel active">
                 <div class="card">
+                    <!-- 選択アクションバー -->
+                    <div id="selectionBar" style="display:none; padding:10px 16px; background:#EEF2FF; border-bottom:1px solid var(--color-border); display:none; align-items:center; gap:12px;">
+                        <span id="selectionCount" style="font-size:13px; font-weight:600; color:var(--color-primary);"></span>
+                        <button class="btn btn-danger btn-sm" onclick="deleteSelectedUsers()">選択を削除</button>
+                        <button class="btn btn-secondary btn-sm" onclick="clearSelection()">選択解除</button>
+                    </div>
                     <div class="card-body" style="padding:0;">
                         <div class="table-wrap">
                             <table class="admin-table">
                                 <thead>
                                     <tr>
+                                        <th style="width:40px;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
                                         <th>ID</th>
                                         <th>デバイス</th>
                                         <th>登録日</th>
@@ -63,7 +70,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="usersTableBody">
-                                    <tr><td colspan="7" class="loading">読み込み中...</td></tr>
+                                    <tr><td colspan="8" class="loading">読み込み中...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -147,6 +154,7 @@
         let totalPages = 1;
         let pageTenantId = null;
         let conditionCounter = 0;
+        let selectedUserIds = new Set();
 
         async function onAdminReady(user) {
             try {
@@ -199,13 +207,15 @@
         function renderUsersTable(users) {
             const tbody = document.getElementById('usersTableBody');
             if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--color-text-muted); padding:32px;">ユーザーが見つかりません</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--color-text-muted); padding:32px;">ユーザーが見つかりません</td></tr>';
                 return;
             }
             tbody.innerHTML = users.map(user => {
                 const ctr = user.stats.ctr.toFixed(1);
                 const ctrClass = user.stats.ctr >= 50 ? 'badge-success' : user.stats.ctr >= 20 ? 'badge-info' : 'badge-warning';
+                const checked = selectedUserIds.has(user.id) ? 'checked' : '';
                 return `<tr>
+                    <td><input type="checkbox" class="user-checkbox" data-id="${user.id}" ${checked} onchange="toggleUserSelect(${user.id}, this.checked)"></td>
                     <td style="font-weight:600; color:var(--color-primary);">#${user.id}</td>
                     <td style="color:var(--color-text-muted); font-size:13px;">${escapeHtml(user.device_info)}</td>
                     <td style="color:var(--color-text-muted); font-size:13px;">${new Date(user.created_at).toLocaleDateString('ja-JP')}</td>
@@ -215,6 +225,7 @@
                     <td><button class="btn btn-secondary btn-sm" onclick="showUserDetail(${user.id})">詳細</button></td>
                 </tr>`;
             }).join('');
+            updateSelectAllCheckbox();
         }
 
         function updatePagination() {
@@ -485,7 +496,79 @@
             }
         }
 
-        // ==================== 一括削除 ====================
+        // ==================== 選択・一括削除 ====================
+        function toggleUserSelect(userId, checked) {
+            if (checked) {
+                selectedUserIds.add(userId);
+            } else {
+                selectedUserIds.delete(userId);
+            }
+            updateSelectionBar();
+            updateSelectAllCheckbox();
+        }
+
+        function toggleSelectAll(el) {
+            var checkboxes = document.querySelectorAll('.user-checkbox');
+            checkboxes.forEach(function(cb) {
+                cb.checked = el.checked;
+                var id = parseInt(cb.dataset.id);
+                if (el.checked) {
+                    selectedUserIds.add(id);
+                } else {
+                    selectedUserIds.delete(id);
+                }
+            });
+            updateSelectionBar();
+        }
+
+        function updateSelectAllCheckbox() {
+            var checkboxes = document.querySelectorAll('.user-checkbox');
+            var selectAll = document.getElementById('selectAll');
+            if (checkboxes.length === 0) { selectAll.checked = false; return; }
+            var allChecked = Array.from(checkboxes).every(function(cb) { return cb.checked; });
+            var someChecked = Array.from(checkboxes).some(function(cb) { return cb.checked; });
+            selectAll.checked = allChecked;
+            selectAll.indeterminate = someChecked && !allChecked;
+        }
+
+        function updateSelectionBar() {
+            var bar = document.getElementById('selectionBar');
+            if (selectedUserIds.size > 0) {
+                bar.style.display = 'flex';
+                document.getElementById('selectionCount').textContent = selectedUserIds.size + '人を選択中';
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function clearSelection() {
+            selectedUserIds.clear();
+            document.querySelectorAll('.user-checkbox').forEach(function(cb) { cb.checked = false; });
+            document.getElementById('selectAll').checked = false;
+            document.getElementById('selectAll').indeterminate = false;
+            updateSelectionBar();
+        }
+
+        async function deleteSelectedUsers() {
+            var count = selectedUserIds.size;
+            if (count === 0) return;
+            if (!await confirmDialog('選択ユーザー削除', count + '人のユーザーを削除します。\n通知履歴・ステップ配信進捗も削除されます。\n\nこの操作は取り消せません。', count + '人を削除する', true)) return;
+
+            try {
+                var ids = Array.from(selectedUserIds);
+                var url = pageTenantId ? '/api/users?action=delete-batch&tenant_id=' + pageTenantId : '/api/users?action=delete-batch';
+                var response = await apiPost(url, { user_ids: ids });
+                var result = await response.json();
+                if (result.status !== 'ok') throw new Error(result.message);
+                toast('success', '削除完了', result.data.deleted_count + '人のユーザーを削除しました');
+                selectedUserIds.clear();
+                updateSelectionBar();
+                await loadUsers(currentPage);
+            } catch (err) {
+                toast('error', '削除失敗', err.message);
+            }
+        }
+
         async function deleteAllUsers() {
             var total = document.getElementById('totalUsers').textContent;
             if (!await confirmDialog('全ユーザー削除', '全 ' + total + ' 人のユーザーを削除します。\n通知履歴・ステップ配信進捗も全て削除されます。\n\nこの操作は取り消せません。', '全て削除する', true)) return;
@@ -496,6 +579,8 @@
                 var result = await response.json();
                 if (result.status !== 'ok') throw new Error(result.message);
                 toast('success', '削除完了', result.data.deleted_count + '人のユーザーを削除しました');
+                selectedUserIds.clear();
+                updateSelectionBar();
                 await loadUsers(1);
             } catch (err) {
                 toast('error', '削除失敗', err.message);
