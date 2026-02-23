@@ -33,8 +33,9 @@ function isPWA() {
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            const registration = await navigator.serviceWorker.register('/sw.js');
+            const registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
             console.log('Service Worker登録成功:', registration);
+            await registration.update();
             return registration;
         } catch (error) {
             console.error('Service Worker登録失敗:', error);
@@ -223,11 +224,11 @@ document.addEventListener('DOMContentLoaded', () => {
         button.disabled = true;
     }
 
-    // ページ読み込み時にService Workerを事前登録（クリック時には既にアクティブに）
+    // ページ読み込み時にService Workerを事前登録 + 強制更新チェック
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(err => 
-            console.warn('SW事前登録:', err)
-        );
+        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+            .then(reg => reg.update())
+            .catch(err => console.warn('SW事前登録:', err));
     }
 
     button.addEventListener('click', requestNotificationPermission);
